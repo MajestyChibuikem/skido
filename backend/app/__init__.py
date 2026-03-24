@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -14,8 +16,9 @@ def create_app():
     app.config.from_object('app.config.Config')
 
     # Initialize extensions — CORS first so it covers all responses including errors
+    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:3000').split(',')
     CORS(app,
-         origins=["http://localhost:3000"],
+         origins=allowed_origins,
          supports_credentials=True,
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
@@ -37,7 +40,6 @@ def create_app():
         return jsonify({'error': 'Missing authorization token'}), 401
 
     # Ensure upload folder exists
-    import os
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     # Register blueprints

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion as Motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+
+const MotionDiv = motion.div;
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -50,7 +52,7 @@ export default function LoginPage() {
 
       {/* Right — form */}
       <div className="flex w-full lg:w-1/2 items-center justify-center px-6 py-12">
-        <Motion.div
+        <MotionDiv
           className="w-full max-w-md"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -116,7 +118,7 @@ export default function LoginPage() {
               &larr; Back to home
             </Link>
           </div>
-        </Motion.div>
+        </MotionDiv>
       </div>
     </div>
   );

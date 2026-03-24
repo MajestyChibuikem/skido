@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { motion as Motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import Lenis from 'lenis';
+
+const MotionDiv = motion.div;
 
 export default function HomePage() {
   // Lenis smooth scroll
@@ -71,7 +73,7 @@ export default function HomePage() {
           style={{ transform: 'translate3d(0,0,0)' }}
         />
         <div className="relative z-10 flex h-full flex-col items-center justify-center px-6">
-          <Motion.div
+          <MotionDiv
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
@@ -99,7 +101,7 @@ export default function HomePage() {
                 Log In
               </Link>
             </div>
-          </Motion.div>
+          </MotionDiv>
         </div>
       </section>
 
@@ -109,16 +111,16 @@ export default function HomePage() {
         className="relative z-10 h-screen overflow-hidden bg-black"
         style={{ transform: 'translate3d(0,0,0)' }}
       >
-        <Motion.div className="absolute inset-0" style={{ y: imgY, willChange: 'transform' }}>
+        <MotionDiv className="absolute inset-0" style={{ y: imgY, willChange: 'transform' }}>
           <img
             src="/images/parallax-bg.jpg"
             alt=""
             className="h-[115%] w-full object-cover brightness-[0.3]"
             style={{ transform: 'translate3d(0,0,0)' }}
           />
-        </Motion.div>
+        </MotionDiv>
         <div className="relative z-10 flex h-full items-center justify-center px-6">
-          <Motion.div
+          <MotionDiv
             style={{
               opacity: parallaxTextOpacity,
               y: parallaxTextY,
@@ -133,7 +135,7 @@ export default function HomePage() {
               <br />
               before it costs you.
             </div>
-          </Motion.div>
+          </MotionDiv>
         </div>
       </section>
 
@@ -144,7 +146,7 @@ export default function HomePage() {
         style={{ transform: 'translate3d(0,0,0)' }}
       >
         <div className="mx-auto max-w-5xl space-y-24">
-          <Motion.div
+          <MotionDiv
             style={{ opacity: feat1Opacity, y: feat1Y, willChange: 'transform, opacity' }}
           >
             <div className="text-[48px] sm:text-[72px] font-extrabold tracking-tight leading-[0.95]" style={{ color: '#1a472a' }}>
@@ -155,9 +157,9 @@ export default function HomePage() {
             <p className="mt-4 max-w-xl text-[20px] font-light text-black/50">
               Upload a video. Our system analyzes movement patterns and flags signs of lameness automatically.
             </p>
-          </Motion.div>
+          </MotionDiv>
 
-          <Motion.div
+          <MotionDiv
             style={{ opacity: feat2Opacity, y: feat2Y, willChange: 'transform, opacity' }}
           >
             <div className="text-[48px] sm:text-[72px] font-extrabold tracking-tight leading-[0.95] text-right" style={{ color: '#1a472a' }}>
@@ -168,9 +170,9 @@ export default function HomePage() {
             <p className="mt-4 ml-auto max-w-xl text-right text-[20px] font-light text-black/50">
               Track every animal across your herd. Dashboard shows status at a glance — normal, suspected, or confirmed.
             </p>
-          </Motion.div>
+          </MotionDiv>
 
-          <Motion.div
+          <MotionDiv
             style={{ opacity: feat3Opacity, y: feat3Y, willChange: 'transform, opacity' }}
           >
             <div className="text-[48px] sm:text-[72px] font-extrabold tracking-tight leading-[0.95]" style={{ color: '#1a472a' }}>
@@ -181,7 +183,7 @@ export default function HomePage() {
             <p className="mt-4 max-w-xl text-[20px] font-light text-black/50">
               Catch problems before they become costly. Early detection means faster treatment and healthier herds.
             </p>
-          </Motion.div>
+          </MotionDiv>
         </div>
       </section>
 
@@ -208,7 +210,7 @@ export default function HomePage() {
             className="absolute inset-0 z-20 flex pointer-events-none"
             style={{ transform: 'translate3d(0,0,0)' }}
           >
-            <Motion.div
+            <MotionDiv
               className="h-full w-[70%] shrink-0 overflow-hidden bg-[#e4e4e7] pointer-events-auto"
               style={{ x: closeLeftX, willChange: 'transform', transform: 'translate3d(0,0,0)' }}
             >
@@ -218,8 +220,8 @@ export default function HomePage() {
                 className="h-full w-full object-cover"
                 style={{ transform: 'translate3d(0,0,0)' }}
               />
-            </Motion.div>
-            <Motion.div
+            </MotionDiv>
+            <MotionDiv
               className="flex h-full w-[30%] shrink-0 items-center bg-[#e4e4e7] px-8 sm:px-14 pointer-events-auto"
               style={{ x: closeRightX, willChange: 'transform', transform: 'translate3d(0,0,0)' }}
             >
@@ -247,7 +249,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-            </Motion.div>
+            </MotionDiv>
           </div>
         </div>
       </div>
@@ -258,7 +260,7 @@ export default function HomePage() {
         className="relative z-10 flex min-h-screen items-center justify-center bg-black px-6"
         style={{ transform: 'translate3d(0,0,0)' }}
       >
-        <Motion.div
+        <MotionDiv
           className="text-center"
           style={{ opacity: ctaOpacity, scale: ctaScale, willChange: 'transform, opacity' }}
         >
@@ -286,7 +288,7 @@ export default function HomePage() {
               Log In
             </Link>
           </div>
-        </Motion.div>
+        </MotionDiv>
       </section>
 
       {/* ════════ Footer ════════ */}

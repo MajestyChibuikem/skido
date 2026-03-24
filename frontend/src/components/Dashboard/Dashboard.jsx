@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { motion as Motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { analysisAPI } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { FaVideo, FaExclamationTriangle, FaCheckCircle } from 'react-icons/fa';
 import { FaCow } from 'react-icons/fa6';
+
+const MotionDiv = motion.div;
 
 const statCards = [
   { key: 'total_cattle', label: 'Total Cattle', icon: FaCow, accent: '#65E4CF' },
@@ -43,7 +45,7 @@ function Dashboard() {
 
   return (
     <div>
-      <Motion.div
+      <MotionDiv
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -52,13 +54,13 @@ function Dashboard() {
           Welcome back{user?.name ? `, ${user.name}` : ''}
         </h1>
         <p className="mb-8" style={{ color: 'rgba(255,255,255,0.35)' }}>Here's an overview of your herd</p>
-      </Motion.div>
+      </MotionDiv>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((card, i) => {
           const Icon = card.icon;
           return (
-            <Motion.div
+            <MotionDiv
               key={card.key}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -77,7 +79,7 @@ function Dashboard() {
                 {stats[card.key]}
               </div>
               <div className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.4)' }}>{card.label}</div>
-            </Motion.div>
+            </MotionDiv>
           );
         })}
       </div>
