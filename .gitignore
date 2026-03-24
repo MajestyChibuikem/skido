@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+venv/
+env/
+.env
+
+# Flask
+instance/
+*.db
+
+# Uploads (local dev)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# ML model weights
+backend/app/ml/models/*.pt
+backend/app/ml/models/*.pth
+backend/app/ml/models/*.onnx
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# React build
+frontend/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log

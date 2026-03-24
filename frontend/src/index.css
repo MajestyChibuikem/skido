@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Marquee ===== */
+@keyframes marquee-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    to right, transparent 0%, black 15%, black 85%, transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right, transparent 0%, black 15%, black 85%, transparent 100%
+  );
+}
+
+.marquee-track {
+  width: max-content;
+  animation: marquee-scroll 30s linear infinite;
+}
+
+/* ===== Liquid Blob Navbar Background ===== */
+@keyframes liquid-blob {
+  0%   { transform: translate3d(-10%, -10%, 0) scale(1.05) rotate(0deg);
+         filter: blur(28px) saturate(120%); }
+  50%  { transform: translate3d(10%, 8%, 0) scale(1.15) rotate(12deg);
+         filter: blur(34px) saturate(140%); }
+  100% { transform: translate3d(-10%, -10%, 0) scale(1.05) rotate(0deg);
+         filter: blur(28px) saturate(120%); }
+}
+
+.liquid-nav-bg {
+  background:
+    radial-gradient(circle at 20% 30%, rgba(101, 228, 207, 0.25), transparent 45%),
+    radial-gradient(circle at 70% 20%, rgba(26, 71, 42, 0.22), transparent 40%),
+    radial-gradient(circle at 60% 80%, rgba(101, 228, 207, 0.16), transparent 46%);
+  animation: liquid-blob 9s ease-in-out infinite;
+}
+
+/* ===== Lenis ===== */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
