@@ -20,7 +20,7 @@ function Navbar({ onToggleSidebar }) {
           <FaBars />
         </button>
         <Link to="/dashboard" className="navbar-brand">
-          Skido
+          AgroCare
         </Link>
         <span className="navbar-subtitle">Cattle Lameness Detection</span>
       </div>

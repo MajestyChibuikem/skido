@@ -4,11 +4,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'skido-dark': '#1a472a',
-        'skido-light': '#65E4CF',
-        'skido-dark-accent': '#056363',
-        'skido-bg-dark': '#0a0a0a',
-        'skido-bg-light': '#e4e4e7',
+        'agrocare-dark': '#1a472a',
+        'agrocare-light': '#65E4CF',
+        'agrocare-dark-accent': '#056363',
+        'agrocare-bg-dark': '#0a0a0a',
+        'agrocare-bg-light': '#e4e4e7',
       },
     },
   },

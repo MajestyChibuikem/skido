@@ -18,13 +18,13 @@ export const getAccessToken = () => accessToken;
 // Refresh token in localStorage
 export const setRefreshToken = (token) => {
   if (token) {
-    localStorage.setItem('skido_refresh_token', token);
+    localStorage.setItem('agrocare_refresh_token', token);
   } else {
-    localStorage.removeItem('skido_refresh_token');
+    localStorage.removeItem('agrocare_refresh_token');
   }
 };
 
-export const getRefreshToken = () => localStorage.getItem('skido_refresh_token');
+export const getRefreshToken = () => localStorage.getItem('agrocare_refresh_token');
 
 // Request interceptor — attach Bearer token
 client.interceptors.request.use((config) => {

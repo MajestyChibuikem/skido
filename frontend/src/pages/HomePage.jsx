@@ -80,7 +80,7 @@ export default function HomePage() {
             className="text-center"
           >
             <div className="text-[80px] sm:text-[120px] font-extrabold tracking-widest leading-none text-white">
-              SKIDO
+              AGROCARE
             </div>
             <div className="mt-4 text-[18px] sm:text-[24px] font-light italic text-white/50">
               Early Detection. Healthier Herds.
@@ -239,7 +239,7 @@ export default function HomePage() {
                   </div>
                   <div>
                     <div className="text-[32px] font-extrabold" style={{ color: '#056363' }}>02</div>
-                    <div className="text-[16px] font-semibold text-black/70">Upload videos to Skido</div>
+                    <div className="text-[16px] font-semibold text-black/70">Upload videos to AgroCare</div>
                     <div className="text-[14px] text-black/40">Simple drag-and-drop, any format</div>
                   </div>
                   <div>
@@ -295,7 +295,7 @@ export default function HomePage() {
       <footer className="relative z-10 bg-black border-t border-white/10 py-8 px-6">
         <div className="mx-auto max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-[14px] text-white/30">
-            &copy; {new Date().getFullYear()} Skido. All rights reserved.
+            &copy; {new Date().getFullYear()} AgroCare. All rights reserved.
           </div>
           <div className="flex gap-6 text-[14px] text-white/30">
             <Link to="/login" className="hover:text-white/60 no-underline text-white/30">

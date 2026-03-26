@@ -7,10 +7,12 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
-    # Database — Railway provides DATABASE_URL; fix postgres:// → postgresql:// for SQLAlchemy
+    # Database — Railway provides DATABASE_URL; fix postgres:// → postgresql+psycopg:// for SQLAlchemy + psycopg3
     _db_url = os.environ.get('DATABASE_URL', 'sqlite:///' + os.path.join(basedir, '..', 'skido.db'))
     if _db_url.startswith('postgres://'):
-        _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
+        _db_url = _db_url.replace('postgres://', 'postgresql+psycopg://', 1)
+    elif _db_url.startswith('postgresql://'):
+        _db_url = _db_url.replace('postgresql://', 'postgresql+psycopg://', 1)
     SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 

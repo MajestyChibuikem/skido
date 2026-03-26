@@ -54,7 +54,7 @@ export default function SignupPage() {
             className="text-[64px] font-extrabold tracking-widest"
             style={{ color: '#65E4CF' }}
           >
-            SKIDO
+            AGROCARE
           </div>
           <p className="mt-4 text-center text-[20px] font-light italic text-white/50">
             Early Detection. Healthier Herds.
@@ -72,7 +72,7 @@ export default function SignupPage() {
         >
           <div className="lg:hidden mb-8 text-center">
             <div className="text-[40px] font-extrabold tracking-widest" style={{ color: '#65E4CF' }}>
-              SKIDO
+              AGROCARE
             </div>
           </div>
 
