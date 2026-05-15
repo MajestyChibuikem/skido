@@ -1,139 +1,183 @@
-import React, { useState, useEffect } from 'react';
-import { cattleAPI, videoAPI, analysisAPI } from '../api/client';
-import AnalysisResultCard from '../components/Analysis/AnalysisResult';
-import VideoPlayer from '../components/Video/VideoPlayer';
+import React, { useState, useEffect, useCallback } from 'react';
+import { recordingsAPI } from '../api/client';
 import '../components/Cattle/Cattle.css';
 
+const STATUS_COLORS = {
+  normal:    '#65E4CF',
+  suspected: '#f5a623',
+  confirmed: '#e74c3c',
+};
+
+const RECORDING_STATUS_COLORS = {
+  pending:    'rgba(255,255,255,0.35)',
+  processing: '#f5a623',
+  done:       '#65E4CF',
+  failed:     '#e74c3c',
+};
+
+function AnimalBadge({ animal }) {
+  const color = STATUS_COLORS[animal.status] || 'rgba(255,255,255,0.4)';
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.6rem',
+        padding: '0.5rem 0.75rem',
+        background: 'rgba(255,255,255,0.05)',
+        borderRadius: '8px',
+        borderLeft: `3px solid ${color}`,
+      }}
+    >
+      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>
+        Animal {animal.animal_index}
+      </span>
+      <span
+        style={{
+          marginLeft: 'auto',
+          color,
+          fontWeight: 700,
+          fontSize: '0.85rem',
+          textTransform: 'capitalize',
+        }}
+      >
+        {animal.status}
+      </span>
+      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>
+        {animal.lameness_score?.toFixed(1)}/10
+      </span>
+    </div>
+  );
+}
+
+function RecordingCard({ recording, selected, onClick }) {
+  const color = RECORDING_STATUS_COLORS[recording.status] || 'rgba(255,255,255,0.4)';
+  return (
+    <div
+      className="cattle-card"
+      onClick={onClick}
+      style={{
+        cursor: 'pointer',
+        marginBottom: '0.5rem',
+        borderColor: selected ? '#65E4CF' : undefined,
+        borderWidth: selected ? '1px' : undefined,
+      }}
+    >
+      <p style={{ margin: 0, fontWeight: 600, color: '#e0e0e0' }}>
+        {recording.original_filename}
+      </p>
+      <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)' }}>
+        {new Date(recording.upload_date).toLocaleString()}
+      </p>
+      <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color }}>
+        {recording.status.charAt(0).toUpperCase() + recording.status.slice(1)}
+        {recording.status === 'done' && ` — ${recording.animals.length} animal(s) detected`}
+      </p>
+    </div>
+  );
+}
+
 function HistoryPage() {
-  const [cattle, setCattle] = useState([]);
-  const [selectedCattle, setSelectedCattle] = useState('');
-  const [videos, setVideos] = useState([]);
-  const [selectedVideo, setSelectedVideo] = useState(null);
-  const [analysis, setAnalysis] = useState(null);
-  const [analyzing, setAnalyzing] = useState(false);
+  const [recordings, setRecordings] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    cattleAPI
+  const fetchRecordings = useCallback(() => {
+    recordingsAPI
       .list()
-      .then((res) => setCattle(res.data))
+      .then((res) => {
+        setRecordings(res.data);
+        // refresh selected if it's still processing
+        if (selected) {
+          const updated = res.data.find((r) => r.id === selected.id);
+          if (updated) setSelected(updated);
+        }
+      })
+      .catch((err) => console.error('Failed to load recordings:', err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selected]);
 
   useEffect(() => {
-    if (selectedCattle) {
-      videoAPI
-        .listByCattle(selectedCattle)
-        .then((res) => setVideos(res.data))
-        .catch((err) => console.error('Failed to load videos:', err));
-    } else {
-      setVideos([]);
-    }
-    setSelectedVideo(null);
-    setAnalysis(null);
-  }, [selectedCattle]);
+    fetchRecordings();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSelectVideo = (video) => {
-    setSelectedVideo(video);
-    setAnalysis(null);
-    if (video.has_analysis) {
-      analysisAPI
-        .get(video.id)
-        .then((res) => setAnalysis(res.data))
-        .catch((err) => console.error('Failed to load analysis:', err));
-    }
-  };
+  // Poll while any recording is still processing
+  useEffect(() => {
+    const hasProcessing = recordings.some(
+      (r) => r.status === 'pending' || r.status === 'processing'
+    );
+    if (!hasProcessing) return;
 
-  const handleAnalyze = () => {
-    if (!selectedVideo) return;
-    setAnalyzing(true);
-    analysisAPI
-      .trigger(selectedVideo.id)
-      .then((res) => setAnalysis(res.data))
-      .catch((err) => console.error('Analysis failed:', err))
-      .finally(() => setAnalyzing(false));
-  };
+    const timer = setTimeout(fetchRecordings, 5000);
+    return () => clearTimeout(timer);
+  }, [recordings, fetchRecordings]);
 
   if (loading) return <div className="loading">Loading...</div>;
 
   return (
     <div className="history-page">
-      <h1 style={{ color: '#65E4CF', marginBottom: '1.5rem', fontWeight: 800 }}>Analysis History</h1>
+      <h1 style={{ color: '#65E4CF', marginBottom: '1.5rem', fontWeight: 800 }}>
+        Recording History
+      </h1>
 
-      <div className="form-group" style={{ maxWidth: '400px', marginBottom: '1.5rem' }}>
-        <label htmlFor="cattle-filter">Filter by Cattle</label>
-        <select
-          id="cattle-filter"
-          value={selectedCattle}
-          onChange={(e) => setSelectedCattle(e.target.value)}
-        >
-          <option value="">-- Select Cattle --</option>
-          {cattle.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} {c.tag ? `(#${c.tag})` : ''}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {videos.length > 0 && (
+      {recordings.length === 0 ? (
+        <div className="empty-state">
+          <p>No recordings yet. Upload a herd feed to get started.</p>
+        </div>
+      ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+          {/* Left — recording list */}
           <div>
-            <h3 style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem' }}>Videos</h3>
-            {videos.map((v) => (
-              <div
-                key={v.id}
-                onClick={() => handleSelectVideo(v)}
-                className="cattle-card"
-                style={{
-                  cursor: 'pointer',
-                  marginBottom: '0.5rem',
-                  borderColor: selectedVideo?.id === v.id ? '#65E4CF' : undefined,
-                  borderWidth: selectedVideo?.id === v.id ? '1px' : undefined,
-                }}
-              >
-                <p style={{ margin: 0, fontWeight: 600, color: '#e0e0e0' }}>{v.original_filename}</p>
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)' }}>
-                  {new Date(v.upload_date).toLocaleDateString()}
-                  {v.has_analysis ? ' - Analyzed' : ' - Not analyzed'}
-                </p>
-              </div>
+            <h3 style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem' }}>
+              Recordings
+            </h3>
+            {recordings.map((r) => (
+              <RecordingCard
+                key={r.id}
+                recording={r}
+                selected={selected?.id === r.id}
+                onClick={() => setSelected(r)}
+              />
             ))}
           </div>
 
+          {/* Right — results panel */}
           <div>
-            {selectedVideo && (
+            {selected ? (
               <>
-                <VideoPlayer videoId={selectedVideo.id} />
-                {analysis ? (
-                  <div style={{ marginTop: '1rem' }}>
-                    <AnalysisResultCard result={analysis} />
+                <h3 style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem' }}>
+                  {selected.original_filename}
+                </h3>
+
+                {selected.status === 'pending' || selected.status === 'processing' ? (
+                  <div style={{ color: '#f5a623', fontSize: '0.9rem' }}>
+                    Analysis in progress — results will appear here automatically.
+                  </div>
+                ) : selected.status === 'failed' ? (
+                  <div style={{ color: '#e74c3c', fontSize: '0.9rem' }}>
+                    Analysis failed. Please try re-uploading the recording.
+                  </div>
+                ) : selected.animals.length === 0 ? (
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>
+                    No animals detected in this recording.
                   </div>
                 ) : (
-                  <button
-                    className="btn btn-primary"
-                    style={{ marginTop: '1rem' }}
-                    onClick={handleAnalyze}
-                    disabled={analyzing}
-                  >
-                    {analyzing ? 'Analyzing...' : 'Run Analysis'}
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {selected.animals
+                      .slice()
+                      .sort((a, b) => a.animal_index - b.animal_index)
+                      .map((animal) => (
+                        <AnimalBadge key={animal.id} animal={animal} />
+                      ))}
+                  </div>
                 )}
               </>
+            ) : (
+              <div className="empty-state">
+                <p>Select a recording to view results.</p>
+              </div>
             )}
           </div>
-        </div>
-      )}
-
-      {!selectedCattle && (
-        <div className="empty-state">
-          <p>Select a cattle record above to view its analysis history.</p>
-        </div>
-      )}
-
-      {selectedCattle && videos.length === 0 && (
-        <div className="empty-state">
-          <p>No videos found for this cattle record.</p>
         </div>
       )}
     </div>

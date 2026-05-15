@@ -47,11 +47,13 @@ def create_app():
     from app.routes.cattle import cattle_bp
     from app.routes.video import video_bp
     from app.routes.analysis import analysis_bp
+    from app.routes.recordings import recordings_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(cattle_bp, url_prefix='/api/cattle')
     app.register_blueprint(video_bp, url_prefix='/api/videos')
     app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
+    app.register_blueprint(recordings_bp, url_prefix='/api/recordings')
 
     # Create tables
     with app.app_context():

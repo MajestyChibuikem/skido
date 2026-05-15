@@ -132,6 +132,17 @@ export const videoAPI = {
   streamUrl: (id) => `${API_URL}/videos/${id}/stream`,
 };
 
+// Recordings API (herd feed upload + results)
+export const recordingsAPI = {
+  upload: (formData, config = {}) =>
+    client.post('/recordings/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      ...config,
+    }),
+  list: () => client.get('/recordings'),
+  get: (id) => client.get(`/recordings/${id}`),
+};
+
 // Analysis API
 export const analysisAPI = {
   trigger: (videoId) => client.post(`/analysis/${videoId}`),

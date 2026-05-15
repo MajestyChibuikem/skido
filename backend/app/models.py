@@ -3,6 +3,54 @@ import bcrypt
 from app import db
 
 
+class Recording(db.Model):
+    __tablename__ = 'recordings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255))
+    file_path = db.Column(db.String(500), nullable=False)
+    upload_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    # pending → processing → done | failed
+    status = db.Column(db.String(20), default='pending')
+
+    animals = db.relationship(
+        'DetectedAnimal', backref='recording', lazy=True, cascade='all, delete-orphan'
+    )
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'filename': self.filename,
+            'original_filename': self.original_filename,
+            'upload_date': self.upload_date.isoformat(),
+            'status': self.status,
+            'animals': [a.to_dict() for a in self.animals],
+        }
+
+
+class DetectedAnimal(db.Model):
+    __tablename__ = 'detected_animals'
+
+    id = db.Column(db.Integer, primary_key=True)
+    recording_id = db.Column(db.Integer, db.ForeignKey('recordings.id'), nullable=False)
+    # 1-based index — which of the up-to-3 tracked blobs this is
+    animal_index = db.Column(db.Integer, nullable=False)
+    lameness_score = db.Column(db.Float)   # 0–10
+    status = db.Column(db.String(20))      # normal | suspected | confirmed
+    analyzed_at = db.Column(db.DateTime)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'animal_index': self.animal_index,
+            'lameness_score': self.lameness_score,
+            'status': self.status,
+            'analyzed_at': self.analyzed_at.isoformat() if self.analyzed_at else None,
+        }
+
+
 class User(db.Model):
     __tablename__ = 'users'
 

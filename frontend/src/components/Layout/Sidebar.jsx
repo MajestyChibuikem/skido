@@ -15,10 +15,10 @@ function Sidebar({ isOpen }) {
           <FaCow /> <span>Cattle</span>
         </NavLink>
         <NavLink to="/upload" className="sidebar-link">
-          <FaUpload /> <span>Upload Video</span>
+          <FaUpload /> <span>Upload Recording</span>
         </NavLink>
         <NavLink to="/history" className="sidebar-link">
-          <FaHistory /> <span>History</span>
+          <FaHistory /> <span>Recordings</span>
         </NavLink>
       </nav>
     </aside>
