@@ -141,6 +141,7 @@ export const recordingsAPI = {
     }),
   list: () => client.get('/recordings'),
   get: (id) => client.get(`/recordings/${id}`),
+  snapshotUrl: (filename) => `${API_URL}/recordings/snapshots/${filename}`,
 };
 
 // Analysis API

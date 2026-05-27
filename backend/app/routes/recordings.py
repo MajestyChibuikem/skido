@@ -2,7 +2,7 @@ import os
 import uuid
 import threading
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from app import db
 from app.models import Recording
 from app.services.analysis_service import run_recording_analysis
@@ -58,3 +58,10 @@ def get_recording(recording_id):
     if not recording:
         return jsonify({'error': 'Recording not found'}), 404
     return jsonify(recording.to_dict())
+
+
+@recordings_bp.route('/snapshots/<path:filename>', methods=['GET'])
+def get_snapshot(filename):
+    """Serve a saved animal snapshot JPEG."""
+    upload_folder = current_app.config['UPLOAD_FOLDER']
+    return send_from_directory(upload_folder, filename)

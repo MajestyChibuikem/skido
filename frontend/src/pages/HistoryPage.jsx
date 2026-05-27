@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { recordingsAPI } from '../api/client';
 import '../components/Cattle/Cattle.css';
+import '../components/Analysis/Analysis.css';
 
 const STATUS_COLORS = {
   normal:    '#65E4CF',
@@ -15,38 +16,170 @@ const RECORDING_STATUS_COLORS = {
   failed:     '#e74c3c',
 };
 
-function AnimalBadge({ animal }) {
-  const color = STATUS_COLORS[animal.status] || 'rgba(255,255,255,0.4)';
+function SnapshotModal({ url, label, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        cursor: 'zoom-out',
+      }}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+        <img
+          src={url}
+          alt={label}
+          style={{
+            display: 'block',
+            maxWidth: '90vw',
+            maxHeight: '85vh',
+            borderRadius: 8,
+            boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
+          }}
+        />
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          padding: '0.5rem 0.75rem',
+          background: 'rgba(0,0,0,0.6)',
+          borderRadius: '0 0 8px 8px',
+          color: '#fff',
+          fontSize: '0.9rem',
+          fontWeight: 600,
+        }}>
+          {label}
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: -12, right: -12,
+            width: 28, height: 28,
+            borderRadius: '50%',
+            border: 'none',
+            background: 'rgba(255,255,255,0.15)',
+            color: '#fff',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            lineHeight: 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AnimalBadge({ animal }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const color = STATUS_COLORS[animal.status] || 'rgba(255,255,255,0.4)';
+  const snapshotUrl = animal.snapshot_filename
+    ? recordingsAPI.snapshotUrl(animal.snapshot_filename)
+    : null;
+
+  return (
+    <>
+      {lightboxOpen && snapshotUrl && (
+        <SnapshotModal
+          url={snapshotUrl}
+          label={`Animal ${animal.animal_index} — ${animal.status} (${animal.lameness_score?.toFixed(1)}/10)`}
+          onClose={() => setLightboxOpen(false)}
+        />
+      )}
     <div
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '0.6rem',
+        gap: '0.75rem',
         padding: '0.5rem 0.75rem',
         background: 'rgba(255,255,255,0.05)',
         borderRadius: '8px',
         borderLeft: `3px solid ${color}`,
       }}
     >
-      <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem' }}>
-        Animal {animal.animal_index}
-      </span>
-      <span
-        style={{
-          marginLeft: 'auto',
-          color,
-          fontWeight: 700,
-          fontSize: '0.85rem',
-          textTransform: 'capitalize',
-        }}
-      >
-        {animal.status}
-      </span>
-      <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>
-        {animal.lameness_score?.toFixed(1)}/10
-      </span>
+      {snapshotUrl ? (
+        <img
+          src={snapshotUrl}
+          alt={`Animal ${animal.animal_index}`}
+          onClick={() => setLightboxOpen(true)}
+          style={{
+            width: 72,
+            height: 54,
+            objectFit: 'cover',
+            borderRadius: 4,
+            flexShrink: 0,
+            border: `1px solid ${color}`,
+            cursor: 'zoom-in',
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: 72,
+            height: 54,
+            borderRadius: 4,
+            background: 'rgba(255,255,255,0.06)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            fontSize: '1.4rem',
+          }}
+        >
+          🐄
+        </div>
+      )}
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', marginBottom: '0.2rem' }}>
+          Animal {animal.animal_index}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span
+            style={{
+              color,
+              fontWeight: 700,
+              fontSize: '0.85rem',
+              textTransform: 'capitalize',
+            }}
+          >
+            {animal.status}
+          </span>
+          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>
+            {animal.lameness_score?.toFixed(1)}/10
+          </span>
+        </div>
+        <div style={{ marginTop: '0.25rem' }}>
+          <div
+            style={{
+              height: 4,
+              borderRadius: 2,
+              background: 'rgba(255,255,255,0.1)',
+              width: '100%',
+            }}
+          >
+            <div
+              style={{
+                height: '100%',
+                borderRadius: 2,
+                background: color,
+                width: `${(animal.lameness_score / 10) * 100}%`,
+                transition: 'width 0.4s ease',
+              }}
+            />
+          </div>
+        </div>
+      </div>
     </div>
+    </>
   );
 }
 

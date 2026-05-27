@@ -37,9 +37,10 @@ class DetectedAnimal(db.Model):
     recording_id = db.Column(db.Integer, db.ForeignKey('recordings.id'), nullable=False)
     # 1-based index — which of the up-to-3 tracked blobs this is
     animal_index = db.Column(db.Integer, nullable=False)
-    lameness_score = db.Column(db.Float)   # 0–10
-    status = db.Column(db.String(20))      # normal | suspected | confirmed
+    lameness_score = db.Column(db.Float)      # 0–10
+    status = db.Column(db.String(20))         # normal | suspected | confirmed
     analyzed_at = db.Column(db.DateTime)
+    snapshot_filename = db.Column(db.String(255), nullable=True)
 
     def to_dict(self):
         return {
@@ -48,6 +49,7 @@ class DetectedAnimal(db.Model):
             'lameness_score': self.lameness_score,
             'status': self.status,
             'analyzed_at': self.analyzed_at.isoformat() if self.analyzed_at else None,
+            'snapshot_filename': self.snapshot_filename,
         }
 
 
