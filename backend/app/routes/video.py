@@ -2,6 +2,7 @@ import os
 import uuid
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from werkzeug.utils import secure_filename
+from sqlalchemy.exc import SQLAlchemyError
 from app import db
 from app.models import Video, Cattle
 
@@ -24,7 +25,12 @@ def upload_video():
     if not cattle_id:
         return jsonify({'error': 'cattle_id is required'}), 400
 
-    cattle = db.session.get(Cattle, int(cattle_id))
+    try:
+        cattle_id_int = int(cattle_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'cattle_id must be a valid number'}), 400
+
+    cattle = db.session.get(Cattle, cattle_id_int)
     if not cattle:
         return jsonify({'error': 'Cattle not found'}), 404
 
@@ -43,13 +49,17 @@ def upload_video():
     file.save(file_path)
 
     video = Video(
-        cattle_id=int(cattle_id),
+        cattle_id=cattle_id_int,
         filename=unique_filename,
         original_filename=original_filename,
         file_path=file_path,
     )
-    db.session.add(video)
-    db.session.commit()
+    try:
+        db.session.add(video)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({'error': 'Could not save video record'}), 500
 
     return jsonify(video.to_dict()), 201
 
@@ -67,10 +77,9 @@ def stream_video(video_id):
     video = db.session.get(Video, video_id)
     if not video:
         return jsonify({'error': 'Video not found'}), 404
-    return send_from_directory(
-        current_app.config['UPLOAD_FOLDER'],
-        video.filename,
-    )
+    if not os.path.exists(video.file_path):
+        return jsonify({'error': 'Video file is no longer available'}), 404
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], video.filename)
 
 
 @video_bp.route('/cattle/<int:cattle_id>', methods=['GET'])

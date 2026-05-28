@@ -1,0 +1,5 @@
+filename,label,source,notes
+normal/normal_N_9.mp4,normal,dataset/Normal/N (9).mp4,Small normal cattle walking sample
+normal/normal_N_21.mp4,normal,dataset/Normal/N (21).mp4,Small normal cattle walking sample
+lame/lame_L_1.mp4,lame,dataset/Lame/L (1).mp4,Small lame cattle walking sample
+lame/lame_L_18.mp4,lame,dataset/Lame/L (18).mp4,Small lame cattle walking sample

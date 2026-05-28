@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { recordingsAPI } from '../../api/client';
-import { FaUpload } from 'react-icons/fa';
+import { FaCloudUploadAlt, FaFileVideo, FaInfoCircle, FaShieldAlt } from 'react-icons/fa';
 import './Video.css';
 
 function VideoUpload() {
@@ -37,17 +37,38 @@ function VideoUpload() {
 
   return (
     <div className="video-upload">
-      <h1>Upload Herd Recording</h1>
-      <p style={{ color: 'rgba(255,255,255,0.5)', marginBottom: '1.5rem' }}>
-        Upload a 1–2 hour farm recording. The AI will scan for up to 3 animals and
-        flag any suspected lameness automatically.
-      </p>
+      <div className="upload-header">
+        <h1>Upload Herd Recording</h1>
+        <p>
+          Submit your herd footage to detect lameness risk. The system tracks up to 3 cows,
+          marks affected cows in snapshots, and returns treatment guidance.
+        </p>
+      </div>
+
+      <div className="upload-helper-grid">
+        <div className="upload-helper-card">
+          <FaFileVideo />
+          <div>
+            <strong>Best Input</strong>
+            <p>Use clear side-view walking footage for more accurate gait scoring.</p>
+          </div>
+        </div>
+        <div className="upload-helper-card">
+          <FaShieldAlt />
+          <div>
+            <strong>What You Get</strong>
+            <p>Per-cow lameness score, red-highlighted snapshot, and recommendations.</p>
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="upload-form">
         {error && <div className="form-error">{error}</div>}
 
         <div className="form-group">
-          <label htmlFor="video">Video File *</label>
+          <label htmlFor="video">
+            <FaInfoCircle /> Video File *
+          </label>
           <div className="file-input-wrapper">
             <input
               type="file"
@@ -67,7 +88,7 @@ function VideoUpload() {
         )}
 
         <button type="submit" className="btn btn-primary" disabled={uploading}>
-          <FaUpload /> {uploading ? 'Uploading...' : 'Upload Recording'}
+          <FaCloudUploadAlt /> {uploading ? 'Uploading...' : 'Upload Recording'}
         </button>
       </form>
     </div>

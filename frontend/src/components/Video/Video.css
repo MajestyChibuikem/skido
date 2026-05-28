@@ -1,11 +1,51 @@
+.upload-header h1,
 .video-upload h1 {
   color: #65E4CF;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.45rem;
   font-weight: 800;
 }
 
+.upload-header p {
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 1rem;
+  max-width: 760px;
+}
+
+.upload-helper-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.upload-helper-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 0.75rem;
+}
+
+.upload-helper-card svg {
+  color: #65E4CF;
+  margin-top: 0.2rem;
+}
+
+.upload-helper-card strong {
+  color: #e0e0e0;
+  font-size: 0.92rem;
+}
+
+.upload-helper-card p {
+  margin: 0.25rem 0 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.82rem;
+}
+
 .upload-form {
-  max-width: 500px;
+  max-width: 760px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 1.5rem;
@@ -28,6 +68,15 @@
   border-radius: 12px;
   text-align: center;
   transition: border-color 0.2s;
+}
+
+.form-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.9rem;
 }
 
 .file-input-wrapper:hover {

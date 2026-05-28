@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from app import db
 from app.models import Cattle
 
@@ -13,19 +14,26 @@ def list_cattle():
 
 @cattle_bp.route('', methods=['POST'])
 def create_cattle():
-    data = request.get_json()
+    data = request.get_json() or {}
 
     if not data or not data.get('name'):
         return jsonify({'error': 'Name is required'}), 400
 
     cattle = Cattle(
-        name=data['name'],
-        tag=data.get('tag'),
+        name=data['name'].strip(),
+        tag=data.get('tag') or None,
         breed=data.get('breed'),
         notes=data.get('notes'),
     )
-    db.session.add(cattle)
-    db.session.commit()
+    try:
+        db.session.add(cattle)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'A cattle record with this tag already exists'}), 409
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({'error': 'Could not save cattle record'}), 500
 
     return jsonify(cattle.to_dict()), 201
 
@@ -44,7 +52,7 @@ def update_cattle(cattle_id):
     if not cattle:
         return jsonify({'error': 'Cattle not found'}), 404
 
-    data = request.get_json()
+    data = request.get_json() or {}
     if data.get('name'):
         cattle.name = data['name']
     if 'tag' in data:
@@ -54,7 +62,14 @@ def update_cattle(cattle_id):
     if 'notes' in data:
         cattle.notes = data['notes']
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'error': 'A cattle record with this tag already exists'}), 409
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({'error': 'Could not update cattle record'}), 500
     return jsonify(cattle.to_dict())
 
 
@@ -64,6 +79,10 @@ def delete_cattle(cattle_id):
     if not cattle:
         return jsonify({'error': 'Cattle not found'}), 404
 
-    db.session.delete(cattle)
-    db.session.commit()
+    try:
+        db.session.delete(cattle)
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify({'error': 'Could not delete cattle record'}), 500
     return jsonify({'message': 'Cattle deleted successfully'})

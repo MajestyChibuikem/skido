@@ -5,7 +5,7 @@ import threading
 from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from app import db
 from app.models import Recording
-from app.services.analysis_service import run_recording_analysis
+from app.services.analysis_service import create_demo_recording_results, run_recording_analysis
 
 recordings_bp = Blueprint('recordings', __name__)
 
@@ -38,6 +38,10 @@ def upload_recording():
     )
     db.session.add(recording)
     db.session.commit()
+
+    if os.environ.get('VERCEL') == '1':
+        create_demo_recording_results(recording, current_app.config['UPLOAD_FOLDER'])
+        return jsonify(recording.to_dict()), 201
 
     app = current_app._get_current_object()
     t = threading.Thread(target=run_recording_analysis, args=(app, recording.id), daemon=True)

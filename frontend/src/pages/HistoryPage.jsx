@@ -1,4 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  FaCamera,
+  FaCheckCircle,
+  FaClipboardList,
+  FaExclamationTriangle,
+  FaHeartbeat,
+  FaRegClock,
+  FaTimesCircle,
+} from 'react-icons/fa';
 import { recordingsAPI } from '../api/client';
 import '../components/Cattle/Cattle.css';
 import '../components/Analysis/Analysis.css';
@@ -14,6 +23,12 @@ const RECORDING_STATUS_COLORS = {
   processing: '#f5a623',
   done:       '#65E4CF',
   failed:     '#e74c3c',
+};
+
+const STATUS_ICONS = {
+  normal: FaCheckCircle,
+  suspected: FaExclamationTriangle,
+  confirmed: FaTimesCircle,
 };
 
 function SnapshotModal({ url, label, onClose }) {
@@ -81,104 +96,78 @@ function SnapshotModal({ url, label, onClose }) {
 function AnimalBadge({ animal }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const color = STATUS_COLORS[animal.status] || 'rgba(255,255,255,0.4)';
+  const StatusIcon = STATUS_ICONS[animal.status] || FaClipboardList;
+  const score = Number.isFinite(animal.lameness_score) ? animal.lameness_score : 0;
   const snapshotUrl = animal.snapshot_filename
     ? recordingsAPI.snapshotUrl(animal.snapshot_filename)
     : null;
+  const isAffected = animal.status === 'suspected' || animal.status === 'confirmed';
 
   return (
     <>
       {lightboxOpen && snapshotUrl && (
         <SnapshotModal
           url={snapshotUrl}
-          label={`Animal ${animal.animal_index} — ${animal.status} (${animal.lameness_score?.toFixed(1)}/10)`}
+          label={`Animal ${animal.animal_index} — ${animal.status} (${score.toFixed(1)}/10)`}
           onClose={() => setLightboxOpen(false)}
         />
       )}
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        padding: '0.5rem 0.75rem',
-        background: 'rgba(255,255,255,0.05)',
-        borderRadius: '8px',
-        borderLeft: `3px solid ${color}`,
-      }}
-    >
-      {snapshotUrl ? (
-        <img
-          src={snapshotUrl}
-          alt={`Animal ${animal.animal_index}`}
-          onClick={() => setLightboxOpen(true)}
-          style={{
-            width: 72,
-            height: 54,
-            objectFit: 'cover',
-            borderRadius: 4,
-            flexShrink: 0,
-            border: `1px solid ${color}`,
-            cursor: 'zoom-in',
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: 72,
-            height: 54,
-            borderRadius: 4,
-            background: 'rgba(255,255,255,0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            fontSize: '1.4rem',
-          }}
-        >
-          🐄
-        </div>
-      )}
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', marginBottom: '0.2rem' }}>
-          Animal {animal.animal_index}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span
-            style={{
-              color,
-              fontWeight: 700,
-              fontSize: '0.85rem',
-              textTransform: 'capitalize',
-            }}
-          >
-            {animal.status}
-          </span>
-          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>
-            {animal.lameness_score?.toFixed(1)}/10
-          </span>
-        </div>
-        <div style={{ marginTop: '0.25rem' }}>
-          <div
-            style={{
-              height: 4,
-              borderRadius: 2,
-              background: 'rgba(255,255,255,0.1)',
-              width: '100%',
-            }}
-          >
-            <div
-              style={{
-                height: '100%',
-                borderRadius: 2,
-                background: color,
-                width: `${(animal.lameness_score / 10) * 100}%`,
-                transition: 'width 0.4s ease',
-              }}
+      <div className={`animal-result-card ${isAffected ? 'affected' : ''}`}>
+        <div className="animal-snapshot-wrap">
+          {snapshotUrl ? (
+            <img
+              src={snapshotUrl}
+              alt={`Animal ${animal.animal_index}`}
+              onClick={() => setLightboxOpen(true)}
+              className="animal-snapshot"
             />
+          ) : (
+            <div className="animal-snapshot placeholder">
+              <FaCamera />
+            </div>
+          )}
+          {isAffected && <div className="affected-outline" />}
+        </div>
+
+        <div className="animal-result-main">
+          <div className="animal-header">
+            <div>
+              <div className="animal-label">Animal {animal.animal_index}</div>
+              <div className="animal-status-row">
+                <StatusIcon style={{ color }} />
+                <span className="animal-status-text" style={{ color }}>
+                  {animal.status}
+                </span>
+                <span className="animal-score">{score.toFixed(1)}/10</span>
+              </div>
+            </div>
+            {animal.analyzed_at && (
+              <div className="animal-time">
+                <FaRegClock />
+                {new Date(animal.analyzed_at).toLocaleString()}
+              </div>
+            )}
+          </div>
+
+          <div className="animal-meter">
+            <div
+              className="animal-meter-fill"
+              style={{ width: `${(score / 10) * 100}%`, background: color }}
+            />
+          </div>
+
+          <div className="animal-message-grid">
+            <div className="animal-message">
+              <span>Feedback</span>
+              <p>{animal.feedback}</p>
+            </div>
+            <div className="animal-message">
+              <span>Recommendation</span>
+              <p>{animal.recommendation}</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
     </>
   );
 }
@@ -196,7 +185,7 @@ function RecordingCard({ recording, selected, onClick }) {
         borderWidth: selected ? '1px' : undefined,
       }}
     >
-      <p style={{ margin: 0, fontWeight: 600, color: '#e0e0e0' }}>
+      <p style={{ margin: 0, fontWeight: 700, color: '#e0e0e0' }}>
         {recording.original_filename}
       </p>
       <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)' }}>
@@ -247,21 +236,59 @@ function HistoryPage() {
 
   if (loading) return <div className="loading">Loading...</div>;
 
+  const totals = recordings.reduce(
+    (acc, recording) => {
+      recording.animals.forEach((animal) => {
+        if (animal.status === 'normal') acc.normal += 1;
+        if (animal.status === 'suspected' || animal.status === 'confirmed') acc.affected += 1;
+      });
+      return acc;
+    },
+    { normal: 0, affected: 0 }
+  );
+
   return (
     <div className="history-page">
-      <h1 style={{ color: '#65E4CF', marginBottom: '1.5rem', fontWeight: 800 }}>
-        Recording History
-      </h1>
+      <div className="history-header">
+        <h1>Herd Health Reports</h1>
+        <p>
+          Review every recording, inspect affected cows, and follow clear recommendations.
+        </p>
+      </div>
+
+      <div className="history-summary-grid">
+        <div className="summary-pill">
+          <FaClipboardList />
+          <div>
+            <span>Total Recordings</span>
+            <strong>{recordings.length}</strong>
+          </div>
+        </div>
+        <div className="summary-pill">
+          <FaCheckCircle />
+          <div>
+            <span>Normal Animals</span>
+            <strong>{totals.normal}</strong>
+          </div>
+        </div>
+        <div className="summary-pill affected">
+          <FaHeartbeat />
+          <div>
+            <span>Affected Animals</span>
+            <strong>{totals.affected}</strong>
+          </div>
+        </div>
+      </div>
 
       {recordings.length === 0 ? (
         <div className="empty-state">
           <p>No recordings yet. Upload a herd feed to get started.</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+        <div className="history-layout-grid">
           {/* Left — recording list */}
-          <div>
-            <h3 style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem' }}>
+          <div className="history-column-panel">
+            <h3 className="history-column-title">
               Recordings
             </h3>
             {recordings.map((r) => (
@@ -275,10 +302,10 @@ function HistoryPage() {
           </div>
 
           {/* Right — results panel */}
-          <div>
+          <div className="history-column-panel">
             {selected ? (
               <>
-                <h3 style={{ color: 'rgba(255,255,255,0.6)', marginBottom: '0.75rem' }}>
+                <h3 className="history-column-title">
                   {selected.original_filename}
                 </h3>
 
@@ -295,7 +322,7 @@ function HistoryPage() {
                     No animals detected in this recording.
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {selected.animals
                       .slice()
                       .sort((a, b) => a.animal_index - b.animal_index)

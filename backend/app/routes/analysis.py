@@ -17,7 +17,15 @@ def trigger_analysis(video_id):
     if existing:
         return jsonify({'error': 'Analysis already exists for this video', 'result': existing.to_dict()}), 409
 
-    result = run_analysis(video)
+    try:
+        result = run_analysis(video)
+    except RuntimeError as exc:
+        return jsonify({'error': str(exc)}), 503
+    except ImportError as exc:
+        return jsonify({
+            'error': 'Video analysis dependencies are not installed in this deployment.',
+            'details': str(exc),
+        }), 503
     return jsonify(result.to_dict()), 201
 
 

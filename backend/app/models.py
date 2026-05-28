@@ -42,6 +42,20 @@ class DetectedAnimal(db.Model):
     analyzed_at = db.Column(db.DateTime)
     snapshot_filename = db.Column(db.String(255), nullable=True)
 
+    def _feedback(self):
+        if self.status == 'confirmed':
+            return 'High lameness risk detected for this animal.'
+        if self.status == 'suspected':
+            return 'Possible lameness detected. This animal should be checked closely.'
+        return 'No lameness indicators were detected for this animal.'
+
+    def _recommendation(self):
+        if self.status == 'confirmed':
+            return 'Isolate the cow, reduce walking distance, inspect hooves and legs, and contact a veterinarian urgently.'
+        if self.status == 'suspected':
+            return 'Monitor the cow for 24-48 hours, check the affected leg/hoof, keep the floor dry, and call a veterinarian if limping continues.'
+        return 'Continue routine monitoring and keep normal feeding, flooring, and movement conditions.'
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -50,6 +64,8 @@ class DetectedAnimal(db.Model):
             'status': self.status,
             'analyzed_at': self.analyzed_at.isoformat() if self.analyzed_at else None,
             'snapshot_filename': self.snapshot_filename,
+            'feedback': self._feedback(),
+            'recommendation': self._recommendation(),
         }
 
 
