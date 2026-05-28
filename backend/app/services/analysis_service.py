@@ -155,13 +155,30 @@ def run_recording_analysis(app, recording_id):
                     "recording %d animal %d: %d frames, score=%.1f status=%s",
                     recording_id, animal_id, pose_data['total_frames'], lameness_score, status,
                 )
+
+                # Annotate snapshot with correct color now that we know the status
+                snapshot_filename = pose_data.get('snapshot_filename')
+                snapshot_bbox = pose_data.get('snapshot_bbox')
+                if snapshot_filename and snapshot_bbox:
+                    try:
+                        from app.ml.pose_estimator import annotate_snapshot
+                        annotate_snapshot(
+                            snapshots_dir, snapshot_filename,
+                            snapshot_bbox, status, animal_id,
+                        )
+                    except Exception as ann_exc:
+                        logger.warning(
+                            "recording %d animal %d: snapshot annotation failed — %s",
+                            recording_id, animal_id, ann_exc,
+                        )
+
                 animal = DetectedAnimal(
                     recording_id=recording.id,
                     animal_index=animal_id,
                     lameness_score=lameness_score,
                     status=status,
                     analyzed_at=datetime.now(timezone.utc),
-                    snapshot_filename=pose_data.get('snapshot_filename'),
+                    snapshot_filename=snapshot_filename,
                 )
                 db.session.add(animal)
 

@@ -1,126 +1,163 @@
-.upload-header h1,
-.video-upload h1 {
+/* ── Page layout ───────────────────────────────────────────────────── */
+.video-upload { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.upload-header h1 {
   color: #65E4CF;
   margin-bottom: 0.45rem;
   font-weight: 800;
+  font-size: 1.9rem;
 }
-
 .upload-header p {
-  color: rgba(255, 255, 255, 0.55);
-  margin-bottom: 1rem;
-  max-width: 760px;
+  color: rgba(255,255,255,0.52);
+  margin: 0;
+  max-width: 720px;
+  line-height: 1.55;
 }
 
+/* ── Helper cards ──────────────────────────────────────────────────── */
 .upload-helper-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.75rem;
-  margin-bottom: 1rem;
 }
 
 .upload-helper-card {
   display: flex;
   align-items: flex-start;
-  gap: 0.6rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 0.75rem;
+  gap: 0.7rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
 }
+.upload-helper-card svg  { color: #65E4CF; font-size: 1.1rem; margin-top: 0.15rem; flex-shrink: 0; }
+.upload-helper-card strong { display: block; color: #e0e0e0; font-size: 0.9rem; margin-bottom: 0.2rem; }
+.upload-helper-card p  { margin: 0; color: rgba(255,255,255,0.48); font-size: 0.82rem; line-height: 1.45; }
 
-.upload-helper-card svg {
-  color: #65E4CF;
-  margin-top: 0.2rem;
-}
-
-.upload-helper-card strong {
-  color: #e0e0e0;
-  font-size: 0.92rem;
-}
-
-.upload-helper-card p {
-  margin: 0.25rem 0 0;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.82rem;
-}
-
+/* ── Form wrapper ──────────────────────────────────────────────────── */
 .upload-form {
   max-width: 760px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.09);
   padding: 1.5rem;
-  border-radius: 12px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.upload-form select {
-  width: 100%;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  font-size: 1rem;
-  background: rgba(255, 255, 255, 0.05);
-  color: #e0e0e0;
-}
-
-.file-input-wrapper {
-  border: 2px dashed rgba(101, 228, 207, 0.2);
-  padding: 1.5rem;
+/* ── Drop zone ─────────────────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed rgba(101,228,207,0.25);
   border-radius: 12px;
+  padding: 2.5rem 1.5rem;
   text-align: center;
-  transition: border-color 0.2s;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: rgba(255,255,255,0.02);
+  outline: none;
+}
+.drop-zone:hover,
+.drop-zone:focus {
+  border-color: rgba(101,228,207,0.5);
+  background: rgba(101,228,207,0.04);
+}
+.drop-zone.drag-over {
+  border-color: #65E4CF;
+  background: rgba(101,228,207,0.07);
+}
+.drop-zone.has-file {
+  border-style: solid;
+  border-color: rgba(101,228,207,0.4);
+  background: rgba(101,228,207,0.04);
+  padding: 1rem 1.25rem;
 }
 
-.form-group label {
-  display: inline-flex;
+/* Drop zone idle state */
+.drop-zone-idle { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+.drop-zone-icon { font-size: 2.5rem; color: rgba(101,228,207,0.55); }
+.drop-zone-label { font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.7); }
+.drop-zone-sub   { font-size: 0.83rem; color: rgba(255,255,255,0.35); }
+
+/* Drop zone file selected state */
+.drop-zone-file {
+  display: flex;
   align-items: center;
-  gap: 0.45rem;
-  margin-bottom: 0.55rem;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 0.9rem;
+  gap: 0.85rem;
+  text-align: left;
 }
-
-.file-input-wrapper:hover {
-  border-color: rgba(101, 228, 207, 0.4);
-}
-
-.file-name {
-  margin-top: 0.5rem;
-  color: #65E4CF;
+.drop-zone-file-icon { font-size: 1.8rem; color: #65E4CF; flex-shrink: 0; }
+.drop-zone-file-info { flex: 1; min-width: 0; }
+.drop-zone-file-name {
+  color: #e0e0e0;
   font-weight: 600;
+  font-size: 0.92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.drop-zone-file-size { color: rgba(255,255,255,0.38); font-size: 0.8rem; margin-top: 0.2rem; }
+.drop-zone-clear {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.85rem;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+.drop-zone-clear:hover { background: rgba(231,76,60,0.15); color: #e74c3c; border-color: rgba(231,76,60,0.3); }
+
+/* ── Progress bar ──────────────────────────────────────────────────── */
+.upload-progress-wrap { display: flex; flex-direction: column; gap: 0.45rem; }
+.upload-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.83rem;
+  color: rgba(255,255,255,0.5);
+}
+.upload-progress-pct { font-weight: 700; color: #65E4CF; }
 
 .progress-bar {
-  position: relative;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  margin-bottom: 1rem;
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 999px;
   overflow: hidden;
 }
-
 .progress-fill {
   height: 100%;
   background: #65E4CF;
-  border-radius: 12px;
-  transition: width 0.3s;
+  border-radius: 999px;
+  transition: width 0.25s ease;
 }
 
-.progress-bar span {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #e0e0e0;
+.upload-processing-note {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.83rem;
+  color: rgba(255,255,255,0.5);
 }
 
+/* ── Submit button ─────────────────────────────────────────────────── */
+.upload-submit-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 0.85rem;
+  font-size: 1rem;
+  border-radius: 10px;
+}
+.upload-submit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Video player ──────────────────────────────────────────────────── */
 .video-player {
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255,255,255,0.08);
 }
-
-.video-player video {
-  display: block;
-}
+.video-player video { display: block; }

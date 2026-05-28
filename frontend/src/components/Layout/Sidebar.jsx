@@ -4,22 +4,29 @@ import { FaHome, FaUpload, FaHistory } from 'react-icons/fa';
 import { FaCow } from 'react-icons/fa6';
 import './Layout.css';
 
+const navItems = [
+  { to: '/dashboard', icon: FaHome,    label: 'Dashboard',         end: true },
+  { to: '/upload',    icon: FaUpload,  label: 'Upload Recording' },
+  { to: '/history',   icon: FaHistory, label: 'Reports' },
+  { to: '/cattle',    icon: FaCow,     label: 'Cattle Records' },
+];
+
 function Sidebar({ isOpen }) {
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <nav className="sidebar-nav">
-        <NavLink to="/dashboard" className="sidebar-link" end>
-          <FaHome /> <span>Dashboard</span>
-        </NavLink>
-        <NavLink to="/cattle" className="sidebar-link">
-          <FaCow /> <span>Cattle</span>
-        </NavLink>
-        <NavLink to="/upload" className="sidebar-link">
-          <FaUpload /> <span>Upload Recording</span>
-        </NavLink>
-        <NavLink to="/history" className="sidebar-link">
-          <FaHistory /> <span>Recordings</span>
-        </NavLink>
+        <div className="sidebar-nav-section">Navigation</div>
+        {navItems.map(({ to, icon: Icon, label, end }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={end}
+            className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+          >
+            <Icon />
+            <span>{label}</span>
+          </NavLink>
+        ))}
       </nav>
     </aside>
   );

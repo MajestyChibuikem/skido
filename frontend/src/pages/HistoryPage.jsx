@@ -7,6 +7,11 @@ import {
   FaHeartbeat,
   FaRegClock,
   FaTimesCircle,
+  FaCommentMedical,
+  FaStethoscope,
+  FaVideo,
+  FaCircleNotch,
+  FaExclamationCircle,
 } from 'react-icons/fa';
 import { recordingsAPI } from '../api/client';
 import '../components/Cattle/Cattle.css';
@@ -26,11 +31,12 @@ const RECORDING_STATUS_COLORS = {
 };
 
 const STATUS_ICONS = {
-  normal: FaCheckCircle,
+  normal:    FaCheckCircle,
   suspected: FaExclamationTriangle,
   confirmed: FaTimesCircle,
 };
 
+/* ── Snapshot lightbox ───────────────────────────────────────────────── */
 function SnapshotModal({ url, label, onClose }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -43,42 +49,43 @@ function SnapshotModal({ url, label, onClose }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.85)',
+        background: 'rgba(0,0,0,0.88)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         cursor: 'zoom-out',
       }}
     >
-      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', maxWidth: '92vw', maxHeight: '92vh' }}>
         <img
           src={url}
           alt={label}
           style={{
             display: 'block',
-            maxWidth: '90vw',
-            maxHeight: '85vh',
-            borderRadius: 8,
-            boxShadow: '0 8px 40px rgba(0,0,0,0.7)',
+            maxWidth: '92vw',
+            maxHeight: '86vh',
+            borderRadius: 10,
+            boxShadow: '0 12px 60px rgba(0,0,0,0.8)',
           }}
         />
         <div style={{
           position: 'absolute', bottom: 0, left: 0, right: 0,
-          padding: '0.5rem 0.75rem',
-          background: 'rgba(0,0,0,0.6)',
-          borderRadius: '0 0 8px 8px',
+          padding: '0.6rem 0.9rem',
+          background: 'rgba(0,0,0,0.65)',
+          borderRadius: '0 0 10px 10px',
           color: '#fff',
-          fontSize: '0.9rem',
+          fontSize: '0.88rem',
           fontWeight: 600,
+          backdropFilter: 'blur(6px)',
         }}>
           {label}
         </div>
         <button
           onClick={onClose}
           style={{
-            position: 'absolute', top: -12, right: -12,
-            width: 28, height: 28,
+            position: 'absolute', top: -14, right: -14,
+            width: 30, height: 30,
             borderRadius: '50%',
-            border: 'none',
-            background: 'rgba(255,255,255,0.15)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            background: 'rgba(30,30,30,0.9)',
             color: '#fff',
             cursor: 'pointer',
             fontSize: '1rem',
@@ -93,6 +100,7 @@ function SnapshotModal({ url, label, onClose }) {
   );
 }
 
+/* ── Single animal result card ───────────────────────────────────────── */
 function AnimalBadge({ animal }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const color = STATUS_COLORS[animal.status] || 'rgba(255,255,255,0.4)';
@@ -101,18 +109,33 @@ function AnimalBadge({ animal }) {
   const snapshotUrl = animal.snapshot_filename
     ? recordingsAPI.snapshotUrl(animal.snapshot_filename)
     : null;
-  const isAffected = animal.status === 'suspected' || animal.status === 'confirmed';
+  const isConfirmed = animal.status === 'confirmed';
+  const isSuspected = animal.status === 'suspected';
+  const isAffected  = isConfirmed || isSuspected;
+
+  const cardClass = [
+    'animal-result-card',
+    isConfirmed ? 'affected' : '',
+    isSuspected ? 'suspected' : '',
+  ].filter(Boolean).join(' ');
+
+  const outlineClass = [
+    'affected-outline',
+    isSuspected && !isConfirmed ? 'suspected' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <>
       {lightboxOpen && snapshotUrl && (
         <SnapshotModal
           url={snapshotUrl}
-          label={`Animal ${animal.animal_index} — ${animal.status} (${score.toFixed(1)}/10)`}
+          label={`Animal ${animal.animal_index} — ${animal.status} (${score.toFixed(1)} / 10)`}
           onClose={() => setLightboxOpen(false)}
         />
       )}
-      <div className={`animal-result-card ${isAffected ? 'affected' : ''}`}>
+
+      <div className={cardClass}>
+        {/* ── Snapshot column ── */}
         <div className="animal-snapshot-wrap">
           {snapshotUrl ? (
             <img
@@ -120,25 +143,34 @@ function AnimalBadge({ animal }) {
               alt={`Animal ${animal.animal_index}`}
               onClick={() => setLightboxOpen(true)}
               className="animal-snapshot"
+              title="Click to enlarge"
             />
           ) : (
             <div className="animal-snapshot placeholder">
               <FaCamera />
             </div>
           )}
-          {isAffected && <div className="affected-outline" />}
+
+          {/* Red / orange square bounding-box overlay */}
+          {isAffected && <div className={outlineClass} />}
+
+          {/* Status badge on snapshot */}
+          <div className={`snapshot-badge ${animal.status}`}>
+            {animal.status}
+          </div>
         </div>
 
+        {/* ── Info column ── */}
         <div className="animal-result-main">
           <div className="animal-header">
             <div>
-              <div className="animal-label">Animal {animal.animal_index}</div>
+              <div className="animal-label">Detected animal</div>
               <div className="animal-status-row">
-                <StatusIcon style={{ color }} />
+                <StatusIcon style={{ color, fontSize: '1rem' }} />
                 <span className="animal-status-text" style={{ color }}>
-                  {animal.status}
+                  Animal {animal.animal_index}
                 </span>
-                <span className="animal-score">{score.toFixed(1)}/10</span>
+                <span className="animal-score">{score.toFixed(1)} / 10</span>
               </div>
             </div>
             {animal.analyzed_at && (
@@ -149,20 +181,36 @@ function AnimalBadge({ animal }) {
             )}
           </div>
 
-          <div className="animal-meter">
-            <div
-              className="animal-meter-fill"
-              style={{ width: `${(score / 10) * 100}%`, background: color }}
-            />
+          {/* Lameness score bar */}
+          <div>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)',
+              marginBottom: '0.3rem',
+            }}>
+              <span>Lameness score</span>
+              <span style={{ color, fontWeight: 700 }}>{score.toFixed(1)} / 10</span>
+            </div>
+            <div className="animal-meter">
+              <div
+                className="animal-meter-fill"
+                style={{ width: `${(score / 10) * 100}%`, background: color }}
+              />
+            </div>
           </div>
 
+          {/* Feedback + recommendation */}
           <div className="animal-message-grid">
             <div className="animal-message">
-              <span>Feedback</span>
+              <div className="animal-message-label">
+                <FaCommentMedical /> Feedback
+              </div>
               <p>{animal.feedback}</p>
             </div>
             <div className="animal-message">
-              <span>Recommendation</span>
+              <div className="animal-message-label">
+                <FaStethoscope /> Recommendation
+              </div>
               <p>{animal.recommendation}</p>
             </div>
           </div>
@@ -172,48 +220,55 @@ function AnimalBadge({ animal }) {
   );
 }
 
+/* ── Recording list item ─────────────────────────────────────────────── */
 function RecordingCard({ recording, selected, onClick }) {
   const color = RECORDING_STATUS_COLORS[recording.status] || 'rgba(255,255,255,0.4)';
   const affectedCount = recording.animals.filter(
-    (animal) => animal.status === 'suspected' || animal.status === 'confirmed'
+    (a) => a.status === 'suspected' || a.status === 'confirmed'
   ).length;
+
+  const StatusDot = () => {
+    if (recording.status === 'processing') return <FaCircleNotch style={{ color, animation: 'spin 1.2s linear infinite' }} />;
+    if (recording.status === 'failed')     return <FaExclamationCircle style={{ color }} />;
+    if (recording.status === 'done')       return <FaCheckCircle style={{ color }} />;
+    return <span style={{ width: 8, height: 8, borderRadius: '50%', background: color, display: 'inline-block' }} />;
+  };
+
   return (
     <div
-      className="cattle-card"
+      className={`recording-list-card${selected ? ' selected' : ''}`}
       onClick={onClick}
-      style={{
-        cursor: 'pointer',
-        marginBottom: '0.5rem',
-        borderColor: selected ? '#65E4CF' : undefined,
-        borderWidth: selected ? '1px' : undefined,
-      }}
     >
-      <p style={{ margin: 0, fontWeight: 700, color: '#e0e0e0' }}>
+      <div className="recording-card-name" title={recording.original_filename}>
+        <FaVideo style={{ color: 'rgba(255,255,255,0.3)', marginRight: '0.4rem', fontSize: '0.78rem' }} />
         {recording.original_filename}
-      </p>
-      <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.35)' }}>
+      </div>
+      <div className="recording-card-date">
         {new Date(recording.upload_date).toLocaleString()}
-      </p>
-      <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color }}>
-        {recording.status.charAt(0).toUpperCase() + recording.status.slice(1)}
-        {recording.status === 'done' &&
-          ` — ${recording.animals.length} animal(s) detected, ${affectedCount} affected`}
-      </p>
+      </div>
+      <div className="recording-card-status" style={{ color }}>
+        <StatusDot />
+        <span>
+          {recording.status.charAt(0).toUpperCase() + recording.status.slice(1)}
+          {recording.status === 'done' &&
+            ` · ${recording.animals.length} animal${recording.animals.length !== 1 ? 's' : ''}${affectedCount > 0 ? `, ${affectedCount} affected` : ''}`}
+        </span>
+      </div>
     </div>
   );
 }
 
+/* ── Page ────────────────────────────────────────────────────────────── */
 function HistoryPage() {
   const [recordings, setRecordings] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [selected, setSelected]     = useState(null);
+  const [loading, setLoading]       = useState(true);
 
   const fetchRecordings = useCallback(() => {
     recordingsAPI
       .list()
       .then((res) => {
         setRecordings(res.data);
-        // refresh selected if it's still processing
         if (selected) {
           const updated = res.data.find((r) => r.id === selected.id);
           if (updated) setSelected(updated);
@@ -221,30 +276,26 @@ function HistoryPage() {
       })
       .catch((err) => console.error('Failed to load recordings:', err))
       .finally(() => setLoading(false));
-  }, [selected]);
+  }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    fetchRecordings();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchRecordings(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Poll while any recording is still processing
   useEffect(() => {
     const hasProcessing = recordings.some(
       (r) => r.status === 'pending' || r.status === 'processing'
     );
     if (!hasProcessing) return;
-
     const timer = setTimeout(fetchRecordings, 5000);
     return () => clearTimeout(timer);
   }, [recordings, fetchRecordings]);
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return <div className="loading">Loading recordings…</div>;
 
   const totals = recordings.reduce(
-    (acc, recording) => {
-      recording.animals.forEach((animal) => {
-        if (animal.status === 'normal') acc.normal += 1;
-        if (animal.status === 'suspected' || animal.status === 'confirmed') acc.affected += 1;
+    (acc, r) => {
+      r.animals.forEach((a) => {
+        if (a.status === 'normal') acc.normal += 1;
+        if (a.status === 'suspected' || a.status === 'confirmed') acc.affected += 1;
       });
       return acc;
     },
@@ -253,13 +304,13 @@ function HistoryPage() {
 
   return (
     <div className="history-page">
+      {/* Header */}
       <div className="history-header">
         <h1>Herd Health Reports</h1>
-        <p>
-          Review every recording, inspect affected cows, and follow clear recommendations.
-        </p>
+        <p>Review recordings, inspect flagged cows, and follow clear treatment guidance.</p>
       </div>
 
+      {/* Summary pills */}
       <div className="history-summary-grid">
         <div className="summary-pill">
           <FaClipboardList />
@@ -286,15 +337,14 @@ function HistoryPage() {
 
       {recordings.length === 0 ? (
         <div className="empty-state">
+          <FaVideo style={{ fontSize: '2rem', marginBottom: '0.75rem', opacity: 0.3 }} />
           <p>No recordings yet. Upload a herd feed to get started.</p>
         </div>
       ) : (
         <div className="history-layout-grid">
           {/* Left — recording list */}
           <div className="history-column-panel">
-            <h3 className="history-column-title">
-              Recordings
-            </h3>
+            <div className="history-column-title">Recordings ({recordings.length})</div>
             {recordings.map((r) => (
               <RecordingCard
                 key={r.id}
@@ -305,39 +355,58 @@ function HistoryPage() {
             ))}
           </div>
 
-          {/* Right — results panel */}
+          {/* Right — results */}
           <div className="history-column-panel">
             {selected ? (
               <>
-                <h3 className="history-column-title">
+                <div className="history-column-title" style={{ marginBottom: '1rem' }}>
                   {selected.original_filename}
-                </h3>
+                </div>
 
-                {selected.status === 'pending' || selected.status === 'processing' ? (
-                  <div style={{ color: '#f5a623', fontSize: '0.9rem' }}>
+                {(selected.status === 'pending' || selected.status === 'processing') ? (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.65rem',
+                    color: '#f5a623', fontSize: '0.9rem', padding: '1rem 0',
+                  }}>
+                    <FaCircleNotch style={{ animation: 'spin 1.2s linear infinite' }} />
                     Analysis in progress — results will appear here automatically.
                   </div>
                 ) : selected.status === 'failed' ? (
-                  <div style={{ color: '#e74c3c', fontSize: '0.9rem' }}>
-                    Analysis failed. Please try re-uploading the recording.
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.65rem',
+                    color: '#e74c3c', fontSize: '0.9rem', padding: '1rem 0',
+                  }}>
+                    <FaExclamationCircle />
+                    Analysis failed. Try re-uploading the recording.
                   </div>
                 ) : selected.animals.length === 0 ? (
-                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>
-                    No animals detected in this recording.
+                  <div className="empty-state">
+                    <p>No animals detected in this recording.</p>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    {/* Quick summary chips */}
                     <div className="selected-recording-summary">
-                      <span>
-                        {selected.animals.filter((a) => a.status === 'suspected' || a.status === 'confirmed').length} affected cow(s)
+                      <span style={{
+                        background: 'rgba(231,76,60,0.1)',
+                        borderColor: 'rgba(231,76,60,0.3)',
+                        color: '#e74c3c',
+                      }}>
+                        {selected.animals.filter((a) => a.status === 'suspected' || a.status === 'confirmed').length} affected
                       </span>
-                      <span>
-                        {selected.animals.filter((a) => a.status === 'normal').length} normal cow(s)
+                      <span style={{
+                        background: 'rgba(101,228,207,0.07)',
+                        borderColor: 'rgba(101,228,207,0.25)',
+                        color: '#65E4CF',
+                      }}>
+                        {selected.animals.filter((a) => a.status === 'normal').length} normal
                       </span>
                     </div>
+
+                    {/* Animal cards — affected first */}
                     {selected.animals
                       .slice()
-                      .sort((a, b) => a.animal_index - b.animal_index)
+                      .sort((a, b) => b.lameness_score - a.lameness_score)
                       .map((animal) => (
                         <AnimalBadge key={animal.id} animal={animal} />
                       ))}
@@ -345,13 +414,17 @@ function HistoryPage() {
                 )}
               </>
             ) : (
-              <div className="empty-state">
-                <p>Select a recording to view results.</p>
+              <div className="empty-state" style={{ padding: '4rem 2rem' }}>
+                <FaClipboardList style={{ fontSize: '2rem', marginBottom: '0.75rem', opacity: 0.25 }} />
+                <p>Select a recording on the left to view results.</p>
               </div>
             )}
           </div>
         </div>
       )}
+
+      {/* Spin keyframe injected inline so no extra file needed */}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

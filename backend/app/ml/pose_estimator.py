@@ -83,15 +83,17 @@ def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
         len(tracks), len(survivors), effective_min,
     )
 
-    snapshot_files = {}
+    snapshot_info = {}
     if snapshots_dir and survivors:
         indexed = [(idx, t) for idx, t in enumerate(survivors, start=1)]
-        snapshot_files = _save_animal_snapshots(video_path, indexed, snapshots_dir)
+        snapshot_info = _save_animal_snapshots(video_path, indexed, snapshots_dir)
 
     result = {}
     for idx, t in enumerate(survivors, start=1):
         pose_data = _build_pose_data(t['detections'], sample_fps)
-        pose_data['snapshot_filename'] = snapshot_files.get(idx)
+        info = snapshot_info.get(idx, {})
+        pose_data['snapshot_filename'] = info.get('filename')
+        pose_data['snapshot_bbox'] = info.get('bbox')
         result[idx] = pose_data
     return result
 
@@ -154,10 +156,12 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600):
 
 
 def _save_animal_snapshots(video_path, indexed_survivors, snapshots_dir):
-    """Capture one representative frame per animal and save as a JPEG.
+    """Capture one representative frame per animal and save as a raw JPEG.
 
     indexed_survivors: list of (animal_index, track_dict) tuples.
-    Returns {animal_index: filename}.
+    Returns {animal_index: {'filename': str, 'bbox': (x1, y1, x2, y2)}}.
+    Annotation (colored bounding box) is applied later via annotate_snapshot()
+    once the lameness status is known.
     """
     import os
     import uuid
@@ -182,22 +186,58 @@ def _save_animal_snapshots(video_path, indexed_survivors, snapshots_dir):
         x1, y1 = int(cx - w / 2), int(cy - h / 2)
         x2, y2 = int(cx + w / 2), int(cy + h / 2)
 
-        teal = (207, 228, 101)   # BGR equivalent of #65E4CF
-        cv2.rectangle(frame, (x1, y1), (x2, y2), teal, 2)
-        label = f'Animal {animal_idx}'
-        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-        cv2.rectangle(frame, (x1, y1 - th - 8), (x1 + tw + 4, y1), teal, -1)
-        cv2.putText(frame, label, (x1 + 2, y1 - 4),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-
         filename = f'snapshot_{uuid.uuid4().hex[:10]}_a{animal_idx}.jpg'
         cv2.imwrite(os.path.join(snapshots_dir, filename), frame,
-                    [cv2.IMWRITE_JPEG_QUALITY, 85])
-        result[animal_idx] = filename
-        logger.debug("Saved snapshot for animal %d → %s", animal_idx, filename)
+                    [cv2.IMWRITE_JPEG_QUALITY, 88])
+        result[animal_idx] = {'filename': filename, 'bbox': (x1, y1, x2, y2)}
+        logger.debug("Saved raw snapshot for animal %d → %s", animal_idx, filename)
 
     cap.release()
     return result
+
+
+def annotate_snapshot(snapshots_dir, filename, bbox, status, animal_idx):
+    """Draw a colored bounding box on a snapshot based on lameness status.
+
+    Modifies the JPEG file in-place. Call this after analyze_gait() returns
+    the status so the box color matches the actual finding.
+    """
+    import os
+    path = os.path.join(snapshots_dir, filename)
+    frame = cv2.imread(path)
+    if frame is None:
+        logger.warning("annotate_snapshot: cannot read %s", path)
+        return
+
+    fh, fw = frame.shape[:2]
+    x1, y1, x2, y2 = bbox
+    x1, y1 = max(0, x1), max(0, y1)
+    x2, y2 = min(fw - 1, x2), min(fh - 1, y2)
+
+    if status == 'confirmed':
+        color_bgr = (60, 76, 231)     # #e74c3c  red
+        label_text = f'Animal {animal_idx}  LAME (confirmed)'
+    elif status == 'suspected':
+        color_bgr = (35, 166, 245)    # #f5a623  orange
+        label_text = f'Animal {animal_idx}  SUSPECTED'
+    else:
+        color_bgr = (207, 228, 101)   # #65E4CF  teal
+        label_text = f'Animal {animal_idx}  Normal'
+
+    thickness = max(3, int(min(fw, fh) / 160))
+    cv2.rectangle(frame, (x1, y1), (x2, y2), color_bgr, thickness)
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = max(0.55, min(fw, fh) / 900)
+    (tw, th), _ = cv2.getTextSize(label_text, font, font_scale, 2)
+    label_y = max(y1 - th - 12, 0)
+    cv2.rectangle(frame, (x1, label_y), (x1 + tw + 10, label_y + th + 10),
+                  color_bgr, cv2.FILLED)
+    cv2.putText(frame, label_text, (x1 + 5, label_y + th + 3),
+                font, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
+
+    cv2.imwrite(path, frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    logger.debug("Annotated snapshot %s status=%s", filename, status)
 
 
 def _build_pose_data(detections, frame_rate):
