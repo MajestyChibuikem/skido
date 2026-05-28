@@ -201,10 +201,11 @@
 
 .affected-outline {
   position: absolute;
-  inset: 6px;
+  inset: 8px;
   border: 3px solid #e74c3c;
-  border-radius: 6px;
+  border-radius: 999px;
   pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
 }
 
 .animal-result-main {
@@ -286,6 +287,21 @@
   color: rgba(255, 255, 255, 0.75);
   font-size: 0.83rem;
   line-height: 1.4;
+}
+
+.selected-recording-summary {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.selected-recording-summary span {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+  border-radius: 999px;
+  padding: 0.32rem 0.6rem;
 }
 
 @media (max-width: 1080px) {

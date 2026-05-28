@@ -1,9 +1,27 @@
 import { useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { FaCamera, FaCheckCircle, FaExclamationTriangle, FaHeartbeat, FaUpload } from 'react-icons/fa';
 import Lenis from 'lenis';
 
 const MotionDiv = motion.div;
+const featureCards = [
+  {
+    title: 'AI-Powered Gait Analysis',
+    description: 'Upload herd footage and automatically detect movement patterns linked to lameness.',
+    icon: FaHeartbeat,
+  },
+  {
+    title: 'Snapshot-Based Evidence',
+    description: 'Get per-cow snapshots with affected animals visibly highlighted for fast review.',
+    icon: FaCamera,
+  },
+  {
+    title: 'Actionable Recommendations',
+    description: 'Receive clear feedback and practical steps for each suspected or confirmed case.',
+    icon: FaExclamationTriangle,
+  },
+];
 
 export default function HomePage() {
   // Lenis smooth scroll
@@ -145,45 +163,41 @@ export default function HomePage() {
         className="relative z-10 bg-[#e4e4e7] py-32 px-6"
         style={{ transform: 'translate3d(0,0,0)' }}
       >
-        <div className="mx-auto max-w-5xl space-y-24">
+        <div className="mx-auto max-w-5xl">
           <MotionDiv
             style={{ opacity: feat1Opacity, y: feat1Y, willChange: 'transform, opacity' }}
           >
             <div className="text-[48px] sm:text-[72px] font-extrabold tracking-tight leading-[0.95]" style={{ color: '#1a472a' }}>
-              AI-Powered
+              One visual system.
               <br />
-              Gait Analysis
+              One clear workflow.
             </div>
-            <p className="mt-4 max-w-xl text-[20px] font-light text-black/50">
-              Upload a video. Our system analyzes movement patterns and flags signs of lameness automatically.
+            <p className="mt-4 max-w-2xl text-[20px] font-light text-black/55">
+              From upload to report, AgroCare uses the same card-based language and icon-led guidance so every screen feels familiar.
             </p>
           </MotionDiv>
 
-          <MotionDiv
-            style={{ opacity: feat2Opacity, y: feat2Y, willChange: 'transform, opacity' }}
-          >
-            <div className="text-[48px] sm:text-[72px] font-extrabold tracking-tight leading-[0.95] text-right" style={{ color: '#1a472a' }}>
-              Real-Time
-              <br />
-              Monitoring
-            </div>
-            <p className="mt-4 ml-auto max-w-xl text-right text-[20px] font-light text-black/50">
-              Track every animal across your herd. Dashboard shows status at a glance — normal, suspected, or confirmed.
-            </p>
-          </MotionDiv>
-
-          <MotionDiv
-            style={{ opacity: feat3Opacity, y: feat3Y, willChange: 'transform, opacity' }}
-          >
-            <div className="text-[48px] sm:text-[72px] font-extrabold tracking-tight leading-[0.95]" style={{ color: '#1a472a' }}>
-              Early
-              <br />
-              Intervention
-            </div>
-            <p className="mt-4 max-w-xl text-[20px] font-light text-black/50">
-              Catch problems before they become costly. Early detection means faster treatment and healthier herds.
-            </p>
-          </MotionDiv>
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-5">
+            {featureCards.map((feature, index) => {
+              const Icon = feature.icon;
+              const anim = index === 0 ? { opacity: feat1Opacity, y: feat1Y } : index === 1 ? { opacity: feat2Opacity, y: feat2Y } : { opacity: feat3Opacity, y: feat3Y };
+              return (
+                <MotionDiv
+                  key={feature.title}
+                  style={{ ...anim, willChange: 'transform, opacity' }}
+                  className="rounded-xl border border-black/10 bg-white/70 p-6"
+                >
+                  <Icon className="text-[22px]" style={{ color: '#056363' }} />
+                  <div className="mt-4 text-[24px] font-extrabold leading-tight text-black/85">
+                    {feature.title}
+                  </div>
+                  <p className="mt-3 text-[15px] text-black/60 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </MotionDiv>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -231,21 +245,27 @@ export default function HomePage() {
                   <br />
                   works
                 </div>
-                <div className="mt-8 space-y-6">
-                  <div>
-                    <div className="text-[32px] font-extrabold" style={{ color: '#056363' }}>01</div>
-                    <div className="text-[16px] font-semibold text-black/70">Mount cameras on your farm</div>
-                    <div className="text-[14px] text-black/40">Record your cattle's natural movement</div>
+                <div className="mt-8 space-y-4">
+                  <div className="rounded-xl border border-black/10 bg-black/5 p-4">
+                    <div className="flex items-center gap-2">
+                      <FaCamera style={{ color: '#056363' }} />
+                      <div className="text-[16px] font-semibold text-black/70">Capture herd movement</div>
+                    </div>
+                    <div className="text-[14px] text-black/45 mt-1">Use farm cameras to record natural walking behavior.</div>
                   </div>
-                  <div>
-                    <div className="text-[32px] font-extrabold" style={{ color: '#056363' }}>02</div>
-                    <div className="text-[16px] font-semibold text-black/70">Upload videos to AgroCare</div>
-                    <div className="text-[14px] text-black/40">Simple drag-and-drop, any format</div>
+                  <div className="rounded-xl border border-black/10 bg-black/5 p-4">
+                    <div className="flex items-center gap-2">
+                      <FaUpload style={{ color: '#056363' }} />
+                      <div className="text-[16px] font-semibold text-black/70">Upload and analyze</div>
+                    </div>
+                    <div className="text-[14px] text-black/45 mt-1">Get snapshot highlights, risk scores, and per-cow recommendations.</div>
                   </div>
-                  <div>
-                    <div className="text-[32px] font-extrabold" style={{ color: '#056363' }}>03</div>
-                    <div className="text-[16px] font-semibold text-black/70">Get instant analysis</div>
-                    <div className="text-[14px] text-black/40">AI detects lameness signs and scores severity</div>
+                  <div className="rounded-xl border border-black/10 bg-black/5 p-4">
+                    <div className="flex items-center gap-2">
+                      <FaCheckCircle style={{ color: '#056363' }} />
+                      <div className="text-[16px] font-semibold text-black/70">Take action early</div>
+                    </div>
+                    <div className="text-[14px] text-black/45 mt-1">Follow guidance quickly to reduce treatment delays and herd loss.</div>
                   </div>
                 </div>
               </div>

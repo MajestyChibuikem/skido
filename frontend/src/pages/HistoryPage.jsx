@@ -174,6 +174,9 @@ function AnimalBadge({ animal }) {
 
 function RecordingCard({ recording, selected, onClick }) {
   const color = RECORDING_STATUS_COLORS[recording.status] || 'rgba(255,255,255,0.4)';
+  const affectedCount = recording.animals.filter(
+    (animal) => animal.status === 'suspected' || animal.status === 'confirmed'
+  ).length;
   return (
     <div
       className="cattle-card"
@@ -193,7 +196,8 @@ function RecordingCard({ recording, selected, onClick }) {
       </p>
       <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color }}>
         {recording.status.charAt(0).toUpperCase() + recording.status.slice(1)}
-        {recording.status === 'done' && ` — ${recording.animals.length} animal(s) detected`}
+        {recording.status === 'done' &&
+          ` — ${recording.animals.length} animal(s) detected, ${affectedCount} affected`}
       </p>
     </div>
   );
@@ -323,6 +327,14 @@ function HistoryPage() {
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div className="selected-recording-summary">
+                      <span>
+                        {selected.animals.filter((a) => a.status === 'suspected' || a.status === 'confirmed').length} affected cow(s)
+                      </span>
+                      <span>
+                        {selected.animals.filter((a) => a.status === 'normal').length} normal cow(s)
+                      </span>
+                    </div>
                     {selected.animals
                       .slice()
                       .sort((a, b) => a.animal_index - b.animal_index)
