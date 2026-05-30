@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { FaBars, FaSignOutAlt } from 'react-icons/fa';
+import { FaBars } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 
