@@ -45,6 +45,9 @@ def _load_bundle():
 def analyze_gait(pose_data, frame_rate=5, pixel_to_cm=0.1):
     """Classify cattle gait and return a 0–10 lameness score.
 
+    Primary path: LamenessSeverityModel (Transformer) when best_model.pt is present.
+    Fallback: SVM pipeline trained by train_model.py.
+
     Args:
         pose_data: dict returned by pose_estimator.extract_pose_keypoints()
                    or pose_estimator.track_multiple_blobs().
@@ -54,6 +57,18 @@ def analyze_gait(pose_data, frame_rate=5, pixel_to_cm=0.1):
         tuple (lameness_score: float 0–10, status: str)
             status is one of 'normal', 'suspected', 'confirmed'.
     """
+    # ── Try Transformer model first ──────────────────────────────────────────
+    try:
+        from .transformer_analyzer import analyze_with_transformer, is_available as tf_available
+        if tf_available():
+            result = analyze_with_transformer(pose_data, frame_rate=frame_rate)
+            if result is not None:
+                logger.debug("Transformer inference: score=%.1f status=%s", *result)
+                return result
+    except Exception as exc:
+        logger.warning("Transformer inference skipped (%s) — falling back to SVM", exc)
+
+    # ── SVM fallback ─────────────────────────────────────────────────────────
     bundle = _load_bundle()
     if bundle is None:
         raise RuntimeError(
