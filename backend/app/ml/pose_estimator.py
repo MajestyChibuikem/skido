@@ -185,6 +185,10 @@ def _save_animal_snapshots(video_path, indexed_survivors, snapshots_dir):
     Selection criterion: largest (bbox area × YOLOv8 confidence) excluding
     the first/last 10 % of the track to avoid entry/exit frames.
 
+    Frames are captured by sequential decode (not cap.set seek) because
+    CAP_PROP_POS_FRAMES is unreliable on H.264/MP4 — it snaps to keyframes
+    and can return dark or wrong frames.
+
     Returns:
         {animal_index: {
             'filename': str,
@@ -197,44 +201,67 @@ def _save_animal_snapshots(video_path, indexed_survivors, snapshots_dir):
     import uuid
 
     os.makedirs(snapshots_dir, exist_ok=True)
+
     cap = cv2.VideoCapture(video_path)
     video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
-    result = {}
 
+    # Pre-compute target frame index for every animal so we can do one pass.
+    targets = {}  # frame_idx -> (animal_idx, list_pos, detections, conf)
     for animal_idx, track in indexed_survivors:
         frame_idxs = track.get('frame_idxs', [])
         detections = track['detections']
         if not frame_idxs:
             continue
-
         list_pos, chosen_frame_idx, conf = _best_frame_idx(
             detections, frame_idxs, video_fps
         )
+        targets[chosen_frame_idx] = (animal_idx, list_pos, detections, conf)
 
-        cap.set(cv2.CAP_PROP_POS_FRAMES, chosen_frame_idx)
+    if not targets:
+        cap.release()
+        return {}
+
+    max_target = max(targets)
+    result = {}
+    frame_idx = 0
+
+    while frame_idx <= max_target:
         ret, frame = cap.read()
         if not ret:
-            continue
+            break
 
-        cx, cy, w, h = detections[list_pos][:4]
-        x1, y1 = int(cx - w / 2), int(cy - h / 2)
-        x2, y2 = int(cx + w / 2), int(cy + h / 2)
-        frame_sec = chosen_frame_idx / video_fps
+        if frame_idx in targets:
+            animal_idx, list_pos, detections, conf = targets[frame_idx]
 
-        filename = f'snapshot_{uuid.uuid4().hex[:10]}_a{animal_idx}.jpg'
-        cv2.imwrite(os.path.join(snapshots_dir, filename), frame,
-                    [cv2.IMWRITE_JPEG_QUALITY, 88])
+            # Auto-brighten underexposed frames using CLAHE on the L channel.
+            gray_mean = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).mean()
+            if gray_mean < 60:
+                clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+                lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+                lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+                frame = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
 
-        result[animal_idx] = {
-            'filename':   filename,
-            'bbox':       (x1, y1, x2, y2),
-            'confidence': round(conf, 3),
-            'frame_sec':  round(frame_sec, 2),
-        }
-        logger.debug(
-            "Saved snapshot for animal %d → %s (conf=%.2f, t=%.1fs)",
-            animal_idx, filename, conf, frame_sec,
-        )
+            cx, cy, w, h = detections[list_pos][:4]
+            x1, y1 = int(cx - w / 2), int(cy - h / 2)
+            x2, y2 = int(cx + w / 2), int(cy + h / 2)
+            frame_sec = frame_idx / video_fps
+
+            filename = f'snapshot_{uuid.uuid4().hex[:10]}_a{animal_idx}.jpg'
+            cv2.imwrite(os.path.join(snapshots_dir, filename), frame,
+                        [cv2.IMWRITE_JPEG_QUALITY, 88])
+
+            result[animal_idx] = {
+                'filename':   filename,
+                'bbox':       (x1, y1, x2, y2),
+                'confidence': round(conf, 3),
+                'frame_sec':  round(frame_sec, 2),
+            }
+            logger.debug(
+                "Saved snapshot for animal %d → %s (conf=%.2f, t=%.1fs)",
+                animal_idx, filename, conf, frame_sec,
+            )
+
+        frame_idx += 1
 
     cap.release()
     return result
