@@ -21,7 +21,7 @@ export default function Navbar({ sidebarCollapsed, onMobileToggle }) {
   const title = Object.entries(TITLES).find(([k]) => pathname.startsWith(k))?.[1] || 'AgroCare';
 
   return (
-    <nav className={}>
+    <nav className={`navbar${sidebarCollapsed ? ' sidebar-collapsed' : ''}`}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button
           onClick={onMobileToggle}

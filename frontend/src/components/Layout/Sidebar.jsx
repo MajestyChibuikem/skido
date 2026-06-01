@@ -20,7 +20,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const handleLogout = async () => { await logout(); navigate('/login'); };
 
   return (
-    <aside className={}>
+    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
       <div className="sidebar-logo">
         <div className="sidebar-logo-mark">AC</div>
         <div className="sidebar-logo-text">
@@ -32,7 +32,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         <div className="sidebar-section-label">Navigation</div>
         {NAV.map(({ to, icon: Icon, label, end }) => (
           <NavLink key={to} to={to} end={end}
-            className={({ isActive }) => }
+            className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
             title={collapsed ? label : undefined}>
             <Icon /><span>{label}</span>
           </NavLink>

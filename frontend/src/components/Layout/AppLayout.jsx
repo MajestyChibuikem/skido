@@ -12,7 +12,7 @@ export default function AppLayout() {
     <>
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
       <Navbar sidebarCollapsed={collapsed} onMobileToggle={() => setMobileOpen(o => !o)} />
-      <main className={}>
+      <main className={`main-content${collapsed ? ' sidebar-collapsed' : ''}`}>
         <Outlet />
       </main>
     </>
