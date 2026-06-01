@@ -6,12 +6,11 @@ import './Layout.css';
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <>
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
-      <Navbar sidebarCollapsed={collapsed} onMobileToggle={() => setMobileOpen(o => !o)} />
+      <Navbar sidebarCollapsed={collapsed} />
       <main className={`main-content${collapsed ? ' sidebar-collapsed' : ''}`}>
         <Outlet />
       </main>
