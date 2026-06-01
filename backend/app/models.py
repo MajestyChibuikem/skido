@@ -35,12 +35,13 @@ class DetectedAnimal(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     recording_id = db.Column(db.Integer, db.ForeignKey('recordings.id'), nullable=False)
-    # 1-based index — which of the up-to-3 tracked blobs this is
     animal_index = db.Column(db.Integer, nullable=False)
     lameness_score = db.Column(db.Float)      # 0–10
     status = db.Column(db.String(20))         # normal | suspected | confirmed
     analyzed_at = db.Column(db.DateTime)
     snapshot_filename = db.Column(db.String(255), nullable=True)
+    snapshot_confidence = db.Column(db.Float, nullable=True)   # YOLOv8 detection conf 0-1
+    snapshot_frame_sec  = db.Column(db.Float, nullable=True)   # seconds into video
 
     def _feedback(self):
         if self.status == 'confirmed':
@@ -64,6 +65,8 @@ class DetectedAnimal(db.Model):
             'status': self.status,
             'analyzed_at': self.analyzed_at.isoformat() if self.analyzed_at else None,
             'snapshot_filename': self.snapshot_filename,
+            'snapshot_confidence': self.snapshot_confidence,
+            'snapshot_frame_sec': self.snapshot_frame_sec,
             'feedback': self._feedback(),
             'recommendation': self._recommendation(),
         }

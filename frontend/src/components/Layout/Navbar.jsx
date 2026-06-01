@@ -1,52 +1,40 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
-import { FaBars } from 'react-icons/fa';
+import { FiMenu } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import './Layout.css';
 
-const PAGE_TITLES = {
+const TITLES = {
   '/dashboard': 'Dashboard',
   '/upload':    'Upload Recording',
-  '/history':   'Herd Health Reports',
+  '/history':   'Reports',
   '/cattle':    'Cattle Records',
 };
 
-function initials(name) {
-  if (!name) return '?';
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+function initials(name = '') {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U';
 }
 
-function Navbar({ onMobileToggle }) {
+export default function Navbar({ sidebarCollapsed, onMobileToggle }) {
   const { user } = useAuth();
-  const location = useLocation();
-
-  const title = Object.entries(PAGE_TITLES).find(([path]) =>
-    location.pathname.startsWith(path)
-  )?.[1] ?? 'AgroCare';
+  const { pathname } = useLocation();
+  const title = Object.entries(TITLES).find(([k]) => pathname.startsWith(k))?.[1] || 'AgroCare';
 
   return (
-    <nav className="navbar">
-      {/* Mobile hamburger */}
-      <button
-        className="navbar-mobile-toggle"
-        onClick={onMobileToggle}
-        aria-label="Toggle menu"
-      >
-        <FaBars />
-      </button>
-
-      <span className="navbar-page-title">{title}</span>
-
-      <div className="navbar-divider" />
-
-      {user?.name && (
-        <div className="navbar-user-pill">
-          <div className="navbar-avatar">{initials(user.name)}</div>
-          <span className="navbar-username">{user.name}</span>
-        </div>
-      )}
+    <nav className={}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button
+          onClick={onMobileToggle}
+          style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer',
+                   color: 'var(--text-2)', fontSize: 18, padding: 4 }}
+          className="mobile-menu-btn">
+          <FiMenu />
+        </button>
+        <span className="navbar-page-title">{title}</span>
+      </div>
+      <div className="navbar-right">
+        <div className="navbar-avatar" title={user?.name}>{initials(user?.name)}</div>
+      </div>
     </nav>
   );
 }
-
-export default Navbar;

@@ -2,8 +2,7 @@
 
 Single-animal tracking (extract_pose_keypoints) and multi-animal tracking
 (track_multiple_blobs) both use YOLOv8 + ByteTrack for reliable per-animal
-detection and ID assignment. This replaces the old MOG2 approach that was
-fragmenting one cow body into multiple blobs.
+detection and ID assignment.
 """
 
 import logging
@@ -13,10 +12,6 @@ from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# YOLO model — loaded once at import time
-# ---------------------------------------------------------------------------
-
 _yolo = None
 COW_CLASS_ID = 19   # COCO class 19 = 'cow'
 
@@ -25,7 +20,7 @@ def _get_yolo():
     global _yolo
     if _yolo is None:
         from ultralytics import YOLO
-        _yolo = YOLO('yolov8n.pt')   # ~6 MB, cached after first download
+        _yolo = YOLO('yolov8n.pt')
         logger.info("YOLOv8n loaded")
     return _yolo
 
@@ -35,16 +30,12 @@ def _get_yolo():
 # ---------------------------------------------------------------------------
 
 def extract_pose_keypoints(video_path, sample_fps=5, min_frames=8):
-    """Track the primary animal in a single-animal video clip.
-
-    Returns the same dict shape expected by gait_analyzer.analyze_gait().
-    """
+    """Track the primary animal in a single-animal video clip."""
     tracks = _run_yolo_tracking(video_path, sample_fps=sample_fps)
     if not tracks:
         logger.warning("extract_pose_keypoints: no tracks found in %s", video_path)
         return _empty_pose_data(sample_fps)
 
-    # Pick the track with the most detections
     best = max(tracks.values(), key=lambda t: len(t['detections']))
     if len(best['detections']) < min_frames:
         return _empty_pose_data(sample_fps)
@@ -62,8 +53,9 @@ def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
     """Track individual animals in a herd recording using YOLOv8 + ByteTrack.
 
     Returns:
-        dict: { animal_index (int, 1-based) -> pose_data dict for analyze_gait() }
-              pose_data includes 'snapshot_filename' key when snapshots_dir is given.
+        dict: { animal_index (int, 1-based) -> pose_data dict }
+              pose_data includes 'snapshot_filename', 'snapshot_bbox',
+              'snapshot_confidence', 'snapshot_frame_sec' when snapshots_dir is given.
     """
     tracks = _run_yolo_tracking(
         video_path,
@@ -92,8 +84,10 @@ def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
     for idx, t in enumerate(survivors, start=1):
         pose_data = _build_pose_data(t['detections'], sample_fps)
         info = snapshot_info.get(idx, {})
-        pose_data['snapshot_filename'] = info.get('filename')
-        pose_data['snapshot_bbox'] = info.get('bbox')
+        pose_data['snapshot_filename']  = info.get('filename')
+        pose_data['snapshot_bbox']      = info.get('bbox')
+        pose_data['snapshot_confidence'] = info.get('confidence')
+        pose_data['snapshot_frame_sec'] = info.get('frame_sec')
         result[idx] = pose_data
     return result
 
@@ -106,7 +100,12 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600):
     """Run YOLOv8 + ByteTrack on a video and return raw track data.
 
     Returns:
-        dict: { track_id -> {'detections': [(cx, cy, w, h), ...], 'frame_idxs': [...]} }
+        dict: {
+            track_id -> {
+                'detections': [(cx, cy, w, h, conf), ...],
+                'frame_idxs': [...]
+            }
+        }
     """
     yolo = _get_yolo()
 
@@ -119,7 +118,7 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600):
     sample_every = max(1, int(round(video_fps / sample_fps)))
     max_frames   = int(max_duration_seconds * video_fps)
 
-    tracks   = defaultdict(lambda: {'detections': [], 'frame_idxs': []})
+    tracks    = defaultdict(lambda: {'detections': [], 'frame_idxs': []})
     frame_idx = 0
 
     while frame_idx < max_frames:
@@ -138,15 +137,18 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600):
             if results and results[0].boxes is not None:
                 boxes = results[0].boxes
                 if boxes.id is not None:
-                    for box, tid in zip(boxes.xyxy.cpu().numpy(),
-                                        boxes.id.cpu().numpy()):
+                    confs = boxes.conf.cpu().numpy()
+                    for box, tid, conf in zip(boxes.xyxy.cpu().numpy(),
+                                              boxes.id.cpu().numpy(),
+                                              confs):
                         x1, y1, x2, y2 = box
                         cx = (x1 + x2) / 2
                         cy = (y1 + y2) / 2
                         w  = x2 - x1
                         h  = y2 - y1
-                        tracks[int(tid)]['detections'].append((float(cx), float(cy),
-                                                               float(w),  float(h)))
+                        tracks[int(tid)]['detections'].append(
+                            (float(cx), float(cy), float(w), float(h), float(conf))
+                        )
                         tracks[int(tid)]['frame_idxs'].append(frame_idx)
 
         frame_idx += 1
@@ -155,19 +157,48 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600):
     return dict(tracks)
 
 
-def _save_animal_snapshots(video_path, indexed_survivors, snapshots_dir):
-    """Capture one representative frame per animal and save as a raw JPEG.
+def _best_frame_idx(detections, frame_idxs, video_fps):
+    """Return (list_pos, frame_idx, confidence) for the highest-quality detection.
 
-    indexed_survivors: list of (animal_index, track_dict) tuples.
-    Returns {animal_index: {'filename': str, 'bbox': (x1, y1, x2, y2)}}.
-    Annotation (colored bounding box) is applied later via annotate_snapshot()
-    once the lameness status is known.
+    Quality = bbox area × detection confidence. We also exclude the first and
+    last 10 % of the track to avoid partial-entry/exit frames.
+    """
+    n = len(detections)
+    margin = max(1, n // 10)
+    candidates = range(margin, n - margin) if n > 2 * margin else range(n)
+
+    best_pos, best_conf = 0, -1.0
+    for i in candidates:
+        cx, cy, w, h, conf = detections[i]
+        quality = (w * h) * conf
+        if quality > best_conf:
+            best_conf = quality
+            best_pos = i
+
+    cx, cy, w, h, conf = detections[best_pos]
+    return best_pos, frame_idxs[best_pos], float(conf)
+
+
+def _save_animal_snapshots(video_path, indexed_survivors, snapshots_dir):
+    """Capture the best-quality frame per animal and save as a raw JPEG.
+
+    Selection criterion: largest (bbox area × YOLOv8 confidence) excluding
+    the first/last 10 % of the track to avoid entry/exit frames.
+
+    Returns:
+        {animal_index: {
+            'filename': str,
+            'bbox': (x1, y1, x2, y2),
+            'confidence': float,
+            'frame_sec': float,
+        }}
     """
     import os
     import uuid
 
     os.makedirs(snapshots_dir, exist_ok=True)
     cap = cv2.VideoCapture(video_path)
+    video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     result = {}
 
     for animal_idx, track in indexed_survivors:
@@ -176,31 +207,48 @@ def _save_animal_snapshots(video_path, indexed_survivors, snapshots_dir):
         if not frame_idxs:
             continue
 
-        mid = len(frame_idxs) // 2
-        cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idxs[mid])
+        list_pos, chosen_frame_idx, conf = _best_frame_idx(
+            detections, frame_idxs, video_fps
+        )
+
+        cap.set(cv2.CAP_PROP_POS_FRAMES, chosen_frame_idx)
         ret, frame = cap.read()
         if not ret:
             continue
 
-        cx, cy, w, h = detections[mid]
+        cx, cy, w, h = detections[list_pos][:4]
         x1, y1 = int(cx - w / 2), int(cy - h / 2)
         x2, y2 = int(cx + w / 2), int(cy + h / 2)
+        frame_sec = chosen_frame_idx / video_fps
 
         filename = f'snapshot_{uuid.uuid4().hex[:10]}_a{animal_idx}.jpg'
         cv2.imwrite(os.path.join(snapshots_dir, filename), frame,
                     [cv2.IMWRITE_JPEG_QUALITY, 88])
-        result[animal_idx] = {'filename': filename, 'bbox': (x1, y1, x2, y2)}
-        logger.debug("Saved raw snapshot for animal %d → %s", animal_idx, filename)
+
+        result[animal_idx] = {
+            'filename':   filename,
+            'bbox':       (x1, y1, x2, y2),
+            'confidence': round(conf, 3),
+            'frame_sec':  round(frame_sec, 2),
+        }
+        logger.debug(
+            "Saved snapshot for animal %d → %s (conf=%.2f, t=%.1fs)",
+            animal_idx, filename, conf, frame_sec,
+        )
 
     cap.release()
     return result
 
 
-def annotate_snapshot(snapshots_dir, filename, bbox, status, animal_idx):
-    """Draw a colored bounding box on a snapshot based on lameness status.
+def annotate_snapshot(snapshots_dir, filename, bbox, status, animal_idx,
+                      confidence=None, frame_sec=None):
+    """Draw a detection overlay on a real video frame.
 
-    Modifies the JPEG file in-place. Call this after analyze_gait() returns
-    the status so the box color matches the actual finding.
+    Overlay includes:
+    - Thick colored bounding box
+    - Corner bracket accents
+    - Filled label bar: "Animal N — STATUS  conf%"
+    - Frame timestamp in bottom-right corner
     """
     import os
     path = os.path.join(snapshots_dir, filename)
@@ -214,43 +262,97 @@ def annotate_snapshot(snapshots_dir, filename, bbox, status, animal_idx):
     x1, y1 = max(0, x1), max(0, y1)
     x2, y2 = min(fw - 1, x2), min(fh - 1, y2)
 
+    # ── Color scheme ──────────────────────────────────────────────────
     if status == 'confirmed':
-        color_bgr = (60, 76, 231)     # #e74c3c  red
-        label_text = f'Animal {animal_idx}  LAME (confirmed)'
+        color_bgr = (60, 76, 231)      # red  #e74c3c
+        label_status = 'LAME — CONFIRMED'
     elif status == 'suspected':
-        color_bgr = (35, 166, 245)    # #f5a623  orange
-        label_text = f'Animal {animal_idx}  SUSPECTED'
+        color_bgr = (35, 166, 245)     # orange  #f5a623
+        label_status = 'SUSPECTED LAMENESS'
     else:
-        color_bgr = (207, 228, 101)   # #65E4CF  teal
-        label_text = f'Animal {animal_idx}  Normal'
+        color_bgr = (207, 228, 101)    # teal  #65E4CF
+        label_status = 'NORMAL'
 
-    thickness = max(3, int(min(fw, fh) / 160))
-    cv2.rectangle(frame, (x1, y1), (x2, y2), color_bgr, thickness)
+    # ── Bounding box ──────────────────────────────────────────────────
+    box_thickness = max(2, int(min(fw, fh) / 180))
+    cv2.rectangle(frame, (x1, y1), (x2, y2), color_bgr, box_thickness)
 
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = max(0.55, min(fw, fh) / 900)
-    (tw, th), _ = cv2.getTextSize(label_text, font, font_scale, 2)
-    label_y = max(y1 - th - 12, 0)
-    cv2.rectangle(frame, (x1, label_y), (x1 + tw + 10, label_y + th + 10),
-                  color_bgr, cv2.FILLED)
-    cv2.putText(frame, label_text, (x1 + 5, label_y + th + 3),
-                font, font_scale, (255, 255, 255), 2, cv2.LINE_AA)
+    # ── Corner brackets ───────────────────────────────────────────────
+    bracket = max(14, int(min(x2 - x1, y2 - y1) * 0.12))
+    bt = box_thickness + 1
+    for (bx, by, sx, sy) in [
+        (x1, y1,  1,  1),
+        (x2, y1, -1,  1),
+        (x1, y2,  1, -1),
+        (x2, y2, -1, -1),
+    ]:
+        cv2.line(frame, (bx, by), (bx + sx * bracket, by), color_bgr, bt)
+        cv2.line(frame, (bx, by), (bx, by + sy * bracket), color_bgr, bt)
 
-    cv2.imwrite(path, frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
-    logger.debug("Annotated snapshot %s status=%s", filename, status)
+    # ── Label bar ─────────────────────────────────────────────────────
+    conf_pct = f'{int(confidence * 100)}%' if confidence is not None else ''
+    label = f'Animal {animal_idx}  {label_status}'
+    if conf_pct:
+        label += f'  {conf_pct}'
+
+    font       = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = max(0.45, min(fw, fh) / 1100)
+    font_thick = max(1, box_thickness - 1)
+    (tw, th), baseline = cv2.getTextSize(label, font, font_scale, font_thick)
+
+    pad = 6
+    bar_h = th + baseline + pad * 2
+    bar_y1 = max(y1 - bar_h, 0)
+    bar_y2 = bar_y1 + bar_h
+
+    # Semi-transparent dark background
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (x1, bar_y1), (x1 + tw + pad * 2, bar_y2),
+                  (15, 15, 15), cv2.FILLED)
+    cv2.addWeighted(overlay, 0.82, frame, 0.18, 0, frame)
+
+    # Colored left accent stripe
+    cv2.rectangle(frame, (x1, bar_y1), (x1 + 4, bar_y2), color_bgr, cv2.FILLED)
+
+    # Label text
+    cv2.putText(frame, label,
+                (x1 + pad + 4, bar_y2 - baseline - pad // 2),
+                font, font_scale, (255, 255, 255), font_thick, cv2.LINE_AA)
+
+    # ── Timestamp (bottom-right of bbox) ──────────────────────────────
+    if frame_sec is not None:
+        mins  = int(frame_sec // 60)
+        secs  = frame_sec % 60
+        ts_text = f'@ {mins:02d}:{secs:05.2f}s'
+        ts_scale = font_scale * 0.85
+        (tsw, tsh), _ = cv2.getTextSize(ts_text, font, ts_scale, 1)
+        ts_x = max(x1, x2 - tsw - pad)
+        ts_y = min(fh - pad, y2 + tsh + pad)
+
+        ts_ov = frame.copy()
+        cv2.rectangle(ts_ov, (ts_x - pad, ts_y - tsh - pad),
+                      (ts_x + tsw + pad, ts_y + pad),
+                      (15, 15, 15), cv2.FILLED)
+        cv2.addWeighted(ts_ov, 0.75, frame, 0.25, 0, frame)
+        cv2.putText(frame, ts_text, (ts_x, ts_y),
+                    font, ts_scale, (200, 200, 200), 1, cv2.LINE_AA)
+
+    cv2.imwrite(path, frame, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    logger.debug("Annotated snapshot %s  status=%s conf=%s t=%s",
+                 filename, status, confidence, frame_sec)
 
 
 def _build_pose_data(detections, frame_rate):
-    """Convert a list of (cx, cy, w, h) detections into the pose_data dict."""
+    """Convert a list of (cx, cy, w, h[, conf]) detections into pose_data dict."""
     centroids = [(d[0], d[1]) for d in detections]
-    bboxes    = [(d[2], d[3]) for d in detections]   # (w, h) per frame
+    bboxes    = [(d[2], d[3]) for d in detections]
 
     frames = [
         {
             'frame_index': i,
             'centroid':    {'x': cx, 'y': cy},
             'bbox':        {'w': bboxes[i][0], 'h': bboxes[i][1]},
-            'confidence':  0.90,
+            'confidence':  float(detections[i][4]) if len(detections[i]) > 4 else 0.9,
         }
         for i, (cx, cy) in enumerate(centroids)
     ]

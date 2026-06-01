@@ -1,224 +1,152 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import {
-  FaUpload, FaClipboardList, FaArrowRight, FaCheckCircle,
-  FaExclamationTriangle, FaVideo, FaHeartbeat,
-} from 'react-icons/fa';
-import { FaCow } from 'react-icons/fa6';
-import { analysisAPI } from '../../api/client';
+import { Link, useNavigate } from 'react-router-dom';
+import { FiUpload, FiActivity, FiAlertTriangle, FiCheckCircle, FiChevronRight, FiClock } from 'react-icons/fi';
+import { analysisAPI, recordingsAPI } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import './Dashboard.css';
 
-const Mv = motion.div;
+const ease = [0.25, 0.1, 0.25, 1];
+const fadeUp = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.38, ease, delay },
+});
 
-/* ── Donut chart (pure SVG) ─────────────────────────────────────────────── */
-function DonutChart({ normal = 0, suspected = 0, confirmed = 0 }) {
-  const total = normal + suspected + confirmed;
-  if (total === 0) {
-    return (
-      <div className="donut-empty">
-        <FaCow style={{ fontSize: '2rem', color: 'var(--text-muted)' }} />
-        <span>No data yet</span>
+function StatCard({ icon: Icon, value, label, sub, color, delay }) {
+  return (
+    <motion.div className="dash-stat-card" {...fadeUp(delay)}>
+      <div className="dash-stat-icon" style={{ background: color + '18', color }}>
+        <Icon size={18} />
       </div>
-    );
-  }
+      <div className="dash-stat-value">{value ?? '—'}</div>
+      <div className="dash-stat-label">{label}</div>
+      {sub && <div className="dash-stat-sub">{sub}</div>}
+    </motion.div>
+  );
+}
 
-  const R = 56, CX = 72, CY = 72, STROKE = 14;
-  const circ = 2 * Math.PI * R;
-
-  const slices = [
-    { value: normal,    color: '#65E4CF', label: 'Normal' },
-    { value: suspected, color: '#f5a623', label: 'Suspected' },
-    { value: confirmed, color: '#e74c3c', label: 'Confirmed' },
-  ].filter(s => s.value > 0);
-
-  let offset = 0;
-  const arcs = slices.map(s => {
-    const pct = s.value / total;
-    const dash = circ * pct;
-    const gap  = circ - dash;
-    const arc  = { ...s, dash, gap, offset, pct };
-    offset += dash;
-    return arc;
-  });
+function SnapshotCard({ animal, recording }) {
+  const snapshotUrl = animal.snapshot_filename
+    ? recordingsAPI.snapshotUrl(animal.snapshot_filename)
+    : null;
+  const conf = animal.snapshot_confidence != null
+    ? `${Math.round(animal.snapshot_confidence * 100)}% conf`
+    : null;
+  const ts = animal.snapshot_frame_sec != null
+    ? `${Math.floor(animal.snapshot_frame_sec / 60).toString().padStart(2,'0')}:${(animal.snapshot_frame_sec % 60).toFixed(1).padStart(4,'0')}s`
+    : null;
 
   return (
-    <div className="donut-wrap">
-      <svg width={CX * 2} height={CY * 2} viewBox={`0 0 ${CX * 2} ${CY * 2}`}>
-        {/* Track */}
-        <circle cx={CX} cy={CY} r={R} fill="none" stroke="var(--border-sub)" strokeWidth={STROKE} />
-        {/* Slices */}
-        {arcs.map((arc, i) => (
-          <circle
-            key={i}
-            cx={CX} cy={CY} r={R}
-            fill="none"
-            stroke={arc.color}
-            strokeWidth={STROKE}
-            strokeDasharray={`${arc.dash} ${arc.gap}`}
-            strokeDashoffset={-arc.offset + circ / 4}
-            style={{ transition: 'stroke-dasharray 0.5s ease' }}
-          />
-        ))}
-        {/* Centre label */}
-        <text x={CX} y={CY - 6} textAnchor="middle" fill="var(--text-pri)" fontSize="22" fontWeight="800">
-          {total}
-        </text>
-        <text x={CX} y={CY + 13} textAnchor="middle" fill="var(--text-muted)" fontSize="9" fontWeight="600">
-          ANIMALS
-        </text>
-      </svg>
-
-      <div className="donut-legend">
-        {[
-          { label: 'Normal',    val: normal,    color: '#65E4CF' },
-          { label: 'Suspected', val: suspected, color: '#f5a623' },
-          { label: 'Confirmed', val: confirmed, color: '#e74c3c' },
-        ].map(({ label, val, color }) => (
-          <div key={label} className="donut-legend-row">
-            <span className="donut-dot" style={{ background: color }} />
-            <span className="donut-legend-label">{label}</span>
-            <span className="donut-legend-val">{val}</span>
+    <Link to="/history" className="dash-snap-card">
+      <div className="dash-snap-img-wrap">
+        {snapshotUrl ? (
+          <img src={snapshotUrl} alt={`Animal ${animal.animal_index}`} className="dash-snap-img" />
+        ) : (
+          <div className="dash-snap-placeholder">
+            <FiActivity size={28} style={{ color: 'var(--text-3)' }} />
           </div>
-        ))}
+        )}
+        <span className={`status-pill ${animal.status} dash-snap-badge`}>
+          {animal.status}
+        </span>
       </div>
-    </div>
-  );
-}
-
-/* ── Stat card ──────────────────────────────────────────────────────────── */
-function StatCard({ label, value, icon: Icon, accent, sub, delay }) {
-  return (
-    <Mv
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-      className="db-stat-card"
-      style={{ '--accent': accent }}
-    >
-      <div className="db-stat-icon" style={{ background: `${accent}18`, color: accent }}>
-        <Icon />
+      <div className="dash-snap-meta">
+        <div className="dash-snap-title">Animal {animal.animal_index}</div>
+        <div className="dash-snap-detail">
+          <span>Score {animal.lameness_score?.toFixed(1)}/10</span>
+          {conf && <span>·</span>}
+          {conf && <span>{conf}</span>}
+        </div>
+        {ts && <div className="dash-snap-ts"><FiClock size={10} /> {ts}</div>}
+        <div className="dash-snap-date">{new Date(recording.upload_date).toLocaleDateString()}</div>
       </div>
-      <div className="db-stat-val">{value}</div>
-      <div className="db-stat-label">{label}</div>
-      {sub && <div className="db-stat-sub">{sub}</div>}
-    </Mv>
-  );
-}
-
-/* ── Quick action ───────────────────────────────────────────────────────── */
-function ActionCard({ to, icon: Icon, title, desc, accent }) {
-  return (
-    <Link to={to} className="db-action-card">
-      <div className="db-action-icon" style={{ background: `${accent}18`, color: accent }}>
-        <Icon />
-      </div>
-      <div className="db-action-body">
-        <strong>{title}</strong>
-        <p>{desc}</p>
-      </div>
-      <FaArrowRight className="db-action-arrow" />
     </Link>
   );
 }
 
-/* ── Main ───────────────────────────────────────────────────────────────── */
 export default function Dashboard() {
   const { user } = useAuth();
-  const [stats,   setStats]   = useState(null);
+  const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [recentAnimals, setRecentAnimals] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    analysisAPI.dashboardStats()
-      .then(r => setStats(r.data))
-      .catch(err => console.error('Stats:', err))
-      .finally(() => setLoading(false));
+    Promise.all([
+      analysisAPI.dashboardStats(),
+      recordingsAPI.list(),
+    ]).then(([statsRes, recRes]) => {
+      setStats(statsRes.data);
+      const animals = [];
+      for (const rec of recRes.data.slice(0, 10)) {
+        for (const a of rec.animals) {
+          animals.push({ animal: a, recording: rec });
+        }
+      }
+      animals.sort((a, b) => b.animal.lameness_score - a.animal.lameness_score);
+      setRecentAnimals(animals.slice(0, 6));
+    }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  if (loading) return (
-    <div className="db-loading">
-      <div className="db-spinner" />
-      <span>Loading dashboard…</span>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="dash-loading">
+        <div className="dash-spinner" />
+      </div>
+    );
+  }
 
-  const s = stats || { total_cattle: 0, total_videos: 0, suspected_cases: 0, normal_cases: 0 };
-  const hasSuspected = s.suspected_cases > 0;
-  const normal    = s.normal_cases    ?? 0;
-  const suspected = s.suspected_cases ?? 0;
-  const confirmed = s.confirmed_cases ?? 0;
-
-  const greeting = () => {
-    const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <div className="db-page">
-      {/* Greeting */}
-      <Mv initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
-        <div className="db-greeting">
-          <div>
-            <h1>{greeting()}{user?.name ? `, ${user.name}` : ''}</h1>
-            <p>Your herd health overview for today.</p>
-          </div>
-          <Link to="/upload" className="btn btn-primary" style={{ gap: '0.5rem', fontSize: '0.85rem' }}>
-            <FaUpload /> Upload Recording
-          </Link>
+    <div className="dash-page">
+      {/* Header */}
+      <motion.div {...fadeUp(0)} className="dash-header">
+        <div>
+          <h1 className="dash-greeting">{greeting}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}.</h1>
+          <p className="dash-sub">AI-powered cattle lameness detection</p>
         </div>
-      </Mv>
+        <motion.button
+          whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+          className="btn btn-teal dash-upload-btn"
+          onClick={() => navigate('/upload')}
+        >
+          <FiUpload size={15} /> Upload Recording
+        </motion.button>
+      </motion.div>
 
-      {/* Alert strip */}
-      {hasSuspected && (
-        <Mv initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <div className="db-alert">
-            <FaHeartbeat style={{ color: 'var(--red)', fontSize: '1.1rem', flexShrink: 0 }} />
-            <div>
-              <strong>{s.suspected_cases} suspected case{s.suspected_cases !== 1 ? 's' : ''}</strong>
-              {' '}require follow-up. Review reports and inspect flagged animals today.
-            </div>
-            <Link to="/history" className="db-alert-link">View Reports <FaArrowRight /></Link>
+      {/* Stats */}
+      <div className="dash-stat-grid">
+        <StatCard icon={FiActivity}       value={stats?.total_analyses}  label="Analyses"   sub="total runs"          color="var(--teal-dark)"   delay={0.06} />
+        <StatCard icon={FiAlertTriangle}  value={stats?.suspected_cases} label="Detected"   sub="suspected + confirmed" color="var(--orange-dark)" delay={0.10} />
+        <StatCard icon={FiCheckCircle}    value={stats?.normal_cases}    label="Normal"     sub="no lameness found"   color="var(--teal-dark)"   delay={0.14} />
+      </div>
+
+      {/* Recent detections */}
+      <motion.div {...fadeUp(0.18)}>
+        <div className="dash-section-header">
+          <span className="dash-section-title">Recent detections</span>
+          <Link to="/history" className="dash-see-all">See all <FiChevronRight size={13} /></Link>
+        </div>
+
+        {recentAnimals.length === 0 ? (
+          <div className="dash-empty">
+            <FiActivity size={32} />
+            <p>No analyses yet. Upload a herd recording to get started.</p>
+            <Link to="/upload" className="btn btn-teal">Upload Recording</Link>
           </div>
-        </Mv>
-      )}
-
-      {/* Stat cards */}
-      <div className="db-stat-grid">
-        <StatCard label="Total Cattle"     value={s.total_cattle}    icon={FaCow}                 accent="#65E4CF" sub="registered"  delay={0.08} />
-        <StatCard label="Videos Analysed"  value={s.total_videos}    icon={FaVideo}               accent="#60a5fa" sub="uploaded"    delay={0.13} />
-        <StatCard label="Suspected Cases"  value={s.suspected_cases} icon={FaExclamationTriangle} accent="#f5a623" sub="need review" delay={0.18} />
-        <StatCard label="Normal"           value={s.normal_cases}    icon={FaCheckCircle}          accent="#65E4CF" sub="cleared"     delay={0.23} />
-      </div>
-
-      {/* Two-column body */}
-      <div className="db-body">
-        {/* Health chart */}
-        <Mv
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.28 }}
-          className="db-panel"
-        >
-          <div className="db-panel-title">Herd Health Distribution</div>
-          <DonutChart normal={normal} suspected={suspected} confirmed={confirmed} />
-        </Mv>
-
-        {/* Quick actions */}
-        <Mv
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.34 }}
-          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-        >
-          <div className="db-panel-title" style={{ marginBottom: 0 }}>Quick Actions</div>
-          <ActionCard to="/upload"  icon={FaUpload}        title="Upload New Recording" desc="Analyse fresh herd movement and get per-cow results." accent="#65E4CF" />
-          <ActionCard to="/history" icon={FaClipboardList} title="View Reports"         desc="Check snapshots, scores, and action plans."            accent="#60a5fa" />
-          <ActionCard to="/cattle"  icon={FaCow}           title="Manage Cattle"        desc="Add or review individual cattle records."              accent="#a78bfa" />
-        </Mv>
-      </div>
+        ) : (
+          <div className="dash-snap-grid">
+            {recentAnimals.map(({ animal, recording }, i) => (
+              <motion.div key={animal.id} {...fadeUp(0.2 + i * 0.04)}>
+                <SnapshotCard animal={animal} recording={recording} />
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }
