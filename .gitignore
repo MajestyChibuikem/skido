@@ -44,3 +44,6 @@ frontend/build/
 
 # Logs
 *.log
+
+# Vercel
+.vercel

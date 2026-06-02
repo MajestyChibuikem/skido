@@ -135,6 +135,18 @@ def run_recording_analysis(app, recording_id):
                             recording_id, animal_id, ann_exc,
                         )
 
+                    # Upload annotated JPEG to Cloudinary; fall back to local filename.
+                    from app.storage import upload_snapshot
+                    local_path = os.path.join(snapshots_dir, snapshot_filename)
+                    public_id = snapshot_filename.rsplit('.', 1)[0]
+                    cloud_url = upload_snapshot(local_path, public_id)
+                    if cloud_url:
+                        snapshot_filename = cloud_url
+                        try:
+                            os.remove(local_path)
+                        except OSError:
+                            pass
+
                 animal = DetectedAnimal(
                     recording_id=recording.id,
                     animal_index=animal_id,
