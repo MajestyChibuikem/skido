@@ -102,9 +102,20 @@ def run_recording_analysis(app, recording_id):
             snapshots_dir = current_app.config['UPLOAD_FOLDER']
 
             t0 = time.time()
+            logger.info(
+                "recording %d: tracking config fps=%s max_duration=%ss max_animals=%s",
+                recording_id,
+                current_app.config['TRACK_SAMPLE_FPS'],
+                current_app.config['TRACK_MAX_DURATION_SECONDS'],
+                current_app.config['TRACK_MAX_ANIMALS'],
+            )
             animals_data = track_multiple_blobs(
                 recording.file_path,
                 snapshots_dir=snapshots_dir,
+                max_animals=current_app.config['TRACK_MAX_ANIMALS'],
+                sample_fps=current_app.config['TRACK_SAMPLE_FPS'],
+                max_duration_seconds=current_app.config['TRACK_MAX_DURATION_SECONDS'],
+                min_frames=current_app.config['TRACK_MIN_FRAMES'],
             )
             logger.info(
                 "recording %d: tracking done in %.1fs — %d animals",
