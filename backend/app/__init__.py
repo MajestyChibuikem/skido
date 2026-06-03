@@ -5,12 +5,66 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
+from sqlalchemy import inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException
 
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+
+
+def _ensure_detected_animals_schema(app):
+    """Add columns that older deployed databases may be missing.
+
+    Render keeps the Postgres database between deploys, and db.create_all()
+    does not migrate existing tables. Keep this narrow so the recordings list
+    cannot 500 when newer model columns are absent.
+    """
+    inspector = inspect(db.engine)
+    if not inspector.has_table('detected_animals'):
+        return
+
+    columns = {col['name'] for col in inspector.get_columns('detected_animals')}
+    dialect = db.engine.dialect.name
+
+    statements = []
+    if dialect == 'postgresql':
+        statements.append(
+            "ALTER TABLE detected_animals ALTER COLUMN snapshot_filename TYPE TEXT"
+        )
+        if 'snapshot_confidence' not in columns:
+            statements.append(
+                "ALTER TABLE detected_animals ADD COLUMN snapshot_confidence DOUBLE PRECISION"
+            )
+        if 'snapshot_frame_sec' not in columns:
+            statements.append(
+                "ALTER TABLE detected_animals ADD COLUMN snapshot_frame_sec DOUBLE PRECISION"
+            )
+    elif dialect == 'sqlite':
+        if 'snapshot_confidence' not in columns:
+            statements.append(
+                "ALTER TABLE detected_animals ADD COLUMN snapshot_confidence FLOAT"
+            )
+        if 'snapshot_frame_sec' not in columns:
+            statements.append(
+                "ALTER TABLE detected_animals ADD COLUMN snapshot_frame_sec FLOAT"
+            )
+    else:
+        if 'snapshot_confidence' not in columns:
+            statements.append(
+                "ALTER TABLE detected_animals ADD COLUMN snapshot_confidence FLOAT"
+            )
+        if 'snapshot_frame_sec' not in columns:
+            statements.append(
+                "ALTER TABLE detected_animals ADD COLUMN snapshot_frame_sec FLOAT"
+            )
+
+    for statement in statements:
+        db.session.execute(text(statement))
+    if statements:
+        db.session.commit()
+        app.logger.info("Updated detected_animals schema with %d statement(s)", len(statements))
 
 
 def create_app():
@@ -95,5 +149,6 @@ def create_app():
     with app.app_context():
         from app import models  # noqa: F401
         db.create_all()
+        _ensure_detected_animals_schema(app)
 
     return app

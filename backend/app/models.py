@@ -39,7 +39,7 @@ class DetectedAnimal(db.Model):
     lameness_score = db.Column(db.Float)      # 0–10
     status = db.Column(db.String(20))         # normal | suspected | confirmed
     analyzed_at = db.Column(db.DateTime)
-    snapshot_filename = db.Column(db.String(255), nullable=True)
+    snapshot_filename = db.Column(db.Text, nullable=True)
     snapshot_confidence = db.Column(db.Float, nullable=True)   # YOLOv8 detection conf 0-1
     snapshot_frame_sec  = db.Column(db.Float, nullable=True)   # seconds into video
 
