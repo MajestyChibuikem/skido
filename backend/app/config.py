@@ -31,11 +31,11 @@ class Config:
 
     # Herd recording analysis is CPU-heavy. Keep production defaults bounded so
     # a long recording cannot monopolize the web worker indefinitely.
-    TRACK_SAMPLE_FPS = float(os.environ.get('TRACK_SAMPLE_FPS', 0.5))
-    TRACK_MAX_DURATION_SECONDS = int(os.environ.get('TRACK_MAX_DURATION_SECONDS', 60))
-    TRACK_MAX_WALL_SECONDS = int(os.environ.get('TRACK_MAX_WALL_SECONDS', 90))
+    TRACK_SAMPLE_FPS = float(os.environ.get('TRACK_SAMPLE_FPS', 2))
+    TRACK_MAX_DURATION_SECONDS = int(os.environ.get('TRACK_MAX_DURATION_SECONDS', 180))
+    TRACK_MAX_WALL_SECONDS = int(os.environ.get('TRACK_MAX_WALL_SECONDS', 300))
     TRACK_MAX_ANIMALS = int(os.environ.get('TRACK_MAX_ANIMALS', 12))
-    TRACK_MIN_FRAMES = int(os.environ.get('TRACK_MIN_FRAMES', 5))
+    TRACK_MIN_FRAMES = int(os.environ.get('TRACK_MIN_FRAMES', 2))
     PROCESSING_STALE_SECONDS = int(os.environ.get('PROCESSING_STALE_SECONDS', 600))
 
     # JWT Configuration

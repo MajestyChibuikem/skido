@@ -1,8 +1,8 @@
 """Pose estimation and animal tracking module for cattle video analysis.
 
 Single-animal tracking (extract_pose_keypoints) and multi-animal tracking
-(track_multiple_blobs) both use YOLOv8 + ByteTrack for reliable per-animal
-detection and ID assignment.
+(track_multiple_blobs) use YOLOv8 detections with lightweight center matching
+for per-animal ID assignment.
 """
 
 import logging
@@ -13,7 +13,9 @@ from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 _yolo = None
-COW_CLASS_ID = 19   # COCO class 19 = 'cow'
+# COCO livestock IDs used by YOLOv8: horse=17, sheep=18, cow=19. Cattle clips
+# sometimes land on a neighboring livestock class, so use all three for recall.
+CATTLE_CLASS_IDS = [17, 18, 19]
 
 
 def _get_yolo():
@@ -50,7 +52,7 @@ def extract_pose_keypoints(video_path, sample_fps=5, min_frames=8):
 def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
                          max_duration_seconds=3600, max_wall_seconds=None,
                          min_frames=10, snapshots_dir=None):
-    """Track individual animals in a herd recording using YOLOv8 + ByteTrack.
+    """Track individual animals in a herd recording using YOLOv8.
 
     Returns:
         dict: { animal_index (int, 1-based) -> pose_data dict }
@@ -64,12 +66,19 @@ def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
         max_wall_seconds=max_wall_seconds,
     )
 
-    total_sampled = sum(len(t['detections']) for t in tracks.values()) or 1
-    effective_min = max(min_frames, int(total_sampled / max(len(tracks), 1) * 0.10))
+    survivors, effective_min = _surviving_tracks(tracks, min_frames, max_animals)
 
-    survivors = [t for t in tracks.values() if len(t['detections']) >= effective_min]
-    survivors.sort(key=lambda t: len(t['detections']), reverse=True)
-    survivors = survivors[:max_animals]
+    if not survivors:
+        logger.warning(
+            "track_multiple_blobs: YOLO found no usable cattle tracks; trying motion fallback"
+        )
+        tracks = _run_motion_tracking(
+            video_path,
+            sample_fps=sample_fps,
+            max_duration_seconds=max_duration_seconds,
+            max_wall_seconds=max_wall_seconds,
+        )
+        survivors, effective_min = _surviving_tracks(tracks, min_frames, max_animals)
 
     logger.info(
         "track_multiple_blobs: %d raw tracks → %d animals (min_frames=%d)",
@@ -93,13 +102,27 @@ def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
     return result
 
 
+def _surviving_tracks(tracks, min_frames, max_animals):
+    if not tracks:
+        return [], min_frames
+
+    total_sampled = sum(len(t['detections']) for t in tracks.values()) or 1
+    effective_min = max(
+        1,
+        min(min_frames, int(total_sampled / max(len(tracks), 1) * 0.10) or 1),
+    )
+    survivors = [t for t in tracks.values() if len(t['detections']) >= effective_min]
+    survivors.sort(key=lambda t: len(t['detections']), reverse=True)
+    return survivors[:max_animals], effective_min
+
+
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
 
 def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600,
                        max_wall_seconds=None):
-    """Run YOLOv8 + ByteTrack on a video and return raw track data.
+    """Run YOLOv8 on sampled frames and return simple center-matched tracks.
 
     Returns:
         dict: {
@@ -123,6 +146,8 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600,
     max_frames   = int(max_duration_seconds * video_fps)
 
     tracks    = defaultdict(lambda: {'detections': [], 'frame_idxs': []})
+    last_centers = {}
+    next_id = 1
     frame_idx = 0
 
     while frame_idx < max_frames:
@@ -138,34 +163,141 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600,
             break
 
         if frame_idx % sample_every == 0:
-            results = yolo.track(
+            results = yolo.predict(
                 frame,
-                classes=[COW_CLASS_ID],
-                persist=True,
-                tracker='bytetrack.yaml',
+                classes=CATTLE_CLASS_IDS,
+                conf=0.15,
                 verbose=False,
             )
             if results and results[0].boxes is not None:
                 boxes = results[0].boxes
-                if boxes.id is not None:
-                    confs = boxes.conf.cpu().numpy()
-                    for box, tid, conf in zip(boxes.xyxy.cpu().numpy(),
-                                              boxes.id.cpu().numpy(),
-                                              confs):
-                        x1, y1, x2, y2 = box
-                        cx = (x1 + x2) / 2
-                        cy = (y1 + y2) / 2
-                        w  = x2 - x1
-                        h  = y2 - y1
-                        tracks[int(tid)]['detections'].append(
-                            (float(cx), float(cy), float(w), float(h), float(conf))
-                        )
-                        tracks[int(tid)]['frame_idxs'].append(frame_idx)
+                confs = boxes.conf.cpu().numpy() if boxes.conf is not None else []
+                detections = []
+                for box, conf in zip(boxes.xyxy.cpu().numpy(), confs):
+                    x1, y1, x2, y2 = box
+                    cx = (x1 + x2) / 2
+                    cy = (y1 + y2) / 2
+                    w  = x2 - x1
+                    h  = y2 - y1
+                    detections.append((float(cx), float(cy), float(w), float(h), float(conf)))
+
+                detections.sort(key=lambda d: d[2] * d[3], reverse=True)
+                used_ids = set()
+                for cx, cy, w, h, conf in detections[:20]:
+                    track_id = _nearest_track_id(cx, cy, last_centers, used_ids)
+                    if track_id is None:
+                        track_id = next_id
+                        next_id += 1
+                    used_ids.add(track_id)
+                    last_centers[track_id] = (cx, cy)
+                    tracks[track_id]['detections'].append((cx, cy, w, h, conf))
+                    tracks[track_id]['frame_idxs'].append(frame_idx)
 
         frame_idx += 1
 
     cap.release()
     return dict(tracks)
+
+
+def _run_motion_tracking(video_path, sample_fps=2, max_duration_seconds=180,
+                         max_wall_seconds=None):
+    """Fallback tracker based on moving foreground blobs.
+
+    This is intentionally conservative and only runs when YOLO produces no
+    usable cattle tracks. It gives the gait model real centroid/bbox movement
+    instead of leaving the report empty.
+    """
+    import time
+
+    started_at = time.monotonic()
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        logger.error("_run_motion_tracking: cannot open %s", video_path)
+        return {}
+
+    video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    sample_every = max(1, int(round(video_fps / sample_fps)))
+    max_frames = int(max_duration_seconds * video_fps)
+    frame_area = (cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 640) * (
+        cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 480
+    )
+    min_area = max(900.0, frame_area * 0.01)
+
+    bg = cv2.createBackgroundSubtractorMOG2(
+        history=max(20, int(sample_fps * 20)),
+        varThreshold=32,
+        detectShadows=True,
+    )
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+
+    tracks = defaultdict(lambda: {'detections': [], 'frame_idxs': []})
+    last_centers = {}
+    next_id = 1
+    frame_idx = 0
+
+    while frame_idx < max_frames:
+        if max_wall_seconds and time.monotonic() - started_at > max_wall_seconds:
+            logger.warning(
+                "_run_motion_tracking: stopped after %.1fs wall-clock cap for %s",
+                time.monotonic() - started_at, video_path,
+            )
+            break
+
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        if frame_idx % sample_every == 0:
+            small = cv2.GaussianBlur(frame, (5, 5), 0)
+            fg = bg.apply(small)
+            _, fg = cv2.threshold(fg, 200, 255, cv2.THRESH_BINARY)
+            fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, kernel)
+            fg = cv2.morphologyEx(fg, cv2.MORPH_CLOSE, kernel, iterations=2)
+
+            contours, _ = cv2.findContours(fg, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            boxes = []
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area < min_area:
+                    continue
+                x, y, w, h = cv2.boundingRect(contour)
+                if w < 20 or h < 20:
+                    continue
+                boxes.append((x, y, w, h, area))
+
+            boxes.sort(key=lambda b: b[4], reverse=True)
+            used_ids = set()
+            for x, y, w, h, area in boxes[:12]:
+                cx = x + w / 2
+                cy = y + h / 2
+                track_id = _nearest_track_id(cx, cy, last_centers, used_ids)
+                if track_id is None:
+                    track_id = next_id
+                    next_id += 1
+                used_ids.add(track_id)
+                last_centers[track_id] = (cx, cy)
+                tracks[track_id]['detections'].append(
+                    (float(cx), float(cy), float(w), float(h), 0.35)
+                )
+                tracks[track_id]['frame_idxs'].append(frame_idx)
+
+        frame_idx += 1
+
+    cap.release()
+    return dict(tracks)
+
+
+def _nearest_track_id(cx, cy, last_centers, used_ids, max_distance=140):
+    best_id = None
+    best_dist = max_distance
+    for track_id, (px, py) in last_centers.items():
+        if track_id in used_ids:
+            continue
+        dist = float(np.hypot(cx - px, cy - py))
+        if dist < best_dist:
+            best_id = track_id
+            best_dist = dist
+    return best_id
 
 
 def _best_frame_idx(detections, frame_idxs, video_fps):
