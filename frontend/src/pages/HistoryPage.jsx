@@ -125,7 +125,7 @@ function AnimalCard({ animal }) {
 }
 
 /* ── Recording row — accordion ── */
-function RecordingRow({ recording }) {
+function RecordingRow({ recording, onRetry, retrying }) {
   const [open, setOpen] = useState(false);
   const affectedCount = recording.animals.filter(a => a.status !== 'normal').length;
   const isProcessing = recording.status === 'pending' || recording.status === 'processing';
@@ -173,7 +173,15 @@ function RecordingRow({ recording }) {
               )}
               {recording.status === 'failed' && (
                 <div className="rec-failed">
-                  <FiAlertCircle /> Analysis failed. Try re-uploading the recording.
+                  <FiAlertCircle /> Analysis failed.
+                  <button
+                    className="rec-retry-btn"
+                    disabled={retrying}
+                    onClick={() => onRetry(recording.id)}
+                  >
+                    <FiRefreshCw size={13} className={retrying ? 'spin' : ''} />
+                    {retrying ? 'Retrying' : 'Retry analysis'}
+                  </button>
                 </div>
               )}
               {recording.status === 'done' && recording.animals.length === 0 && (
@@ -202,6 +210,7 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const [retryingId, setRetryingId] = useState(null);
 
   const fetchRecordings = useCallback(() => {
     recordingsAPI.list()
@@ -218,6 +227,17 @@ export default function HistoryPage() {
     const t = setTimeout(fetchRecordings, 5000);
     return () => clearTimeout(t);
   }, [recordings, fetchRecordings]);
+
+  const retryRecording = useCallback((id) => {
+    setRetryingId(id);
+    recordingsAPI.retry(id)
+      .then(res => {
+        setRecordings(prev => prev.map(r => (r.id === id ? res.data : r)));
+        setFilter('all');
+      })
+      .catch(err => console.error('Failed to retry recording:', err))
+      .finally(() => setRetryingId(null));
+  }, []);
 
   const filtered = recordings.filter(r => {
     const nameMatch = !query || (r.original_filename || r.filename || '').toLowerCase().includes(query.toLowerCase());
@@ -294,7 +314,11 @@ export default function HistoryPage() {
                 initial={{ opacity:0,y:10 }} animate={{ opacity:1,y:0 }}
                 transition={{ duration:0.28, ease, delay: i * 0.03 }}
               >
-                <RecordingRow recording={r} />
+                <RecordingRow
+                  recording={r}
+                  onRetry={retryRecording}
+                  retrying={retryingId === r.id}
+                />
               </motion.div>
             ))}
           </div>

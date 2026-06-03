@@ -103,10 +103,11 @@ def run_recording_analysis(app, recording_id):
 
             t0 = time.time()
             logger.info(
-                "recording %d: tracking config fps=%s max_duration=%ss max_animals=%s",
+                "recording %d: tracking config fps=%s max_duration=%ss max_wall=%ss max_animals=%s",
                 recording_id,
                 current_app.config['TRACK_SAMPLE_FPS'],
                 current_app.config['TRACK_MAX_DURATION_SECONDS'],
+                current_app.config['TRACK_MAX_WALL_SECONDS'],
                 current_app.config['TRACK_MAX_ANIMALS'],
             )
             animals_data = track_multiple_blobs(
@@ -115,6 +116,7 @@ def run_recording_analysis(app, recording_id):
                 max_animals=current_app.config['TRACK_MAX_ANIMALS'],
                 sample_fps=current_app.config['TRACK_SAMPLE_FPS'],
                 max_duration_seconds=current_app.config['TRACK_MAX_DURATION_SECONDS'],
+                max_wall_seconds=current_app.config['TRACK_MAX_WALL_SECONDS'],
                 min_frames=current_app.config['TRACK_MIN_FRAMES'],
             )
             logger.info(
@@ -123,7 +125,10 @@ def run_recording_analysis(app, recording_id):
             )
 
             for animal_id, pose_data in animals_data.items():
-                lameness_score, status = analyze_gait(pose_data, frame_rate=1)
+                lameness_score, status = analyze_gait(
+                    pose_data,
+                    frame_rate=current_app.config['TRACK_SAMPLE_FPS'],
+                )
 
                 snapshot_filename  = pose_data.get('snapshot_filename')
                 snapshot_bbox      = pose_data.get('snapshot_bbox')

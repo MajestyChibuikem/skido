@@ -141,6 +141,7 @@ export const recordingsAPI = {
     }),
   list: () => client.get('/recordings'),
   get: (id) => client.get(`/recordings/${id}`),
+  retry: (id) => client.post(`/recordings/${id}/retry`),
   snapshotUrl: (filename) =>
     filename?.startsWith('http') ? filename : `${API_URL}/recordings/snapshots/${filename}`,
 };

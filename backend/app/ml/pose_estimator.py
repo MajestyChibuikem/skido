@@ -48,8 +48,8 @@ def extract_pose_keypoints(video_path, sample_fps=5, min_frames=8):
 # ---------------------------------------------------------------------------
 
 def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
-                         max_duration_seconds=3600, min_frames=10,
-                         snapshots_dir=None):
+                         max_duration_seconds=3600, max_wall_seconds=None,
+                         min_frames=10, snapshots_dir=None):
     """Track individual animals in a herd recording using YOLOv8 + ByteTrack.
 
     Returns:
@@ -61,6 +61,7 @@ def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
         video_path,
         sample_fps=sample_fps,
         max_duration_seconds=max_duration_seconds,
+        max_wall_seconds=max_wall_seconds,
     )
 
     total_sampled = sum(len(t['detections']) for t in tracks.values()) or 1
@@ -96,7 +97,8 @@ def track_multiple_blobs(video_path, max_animals=20, sample_fps=5,
 # Private helpers
 # ---------------------------------------------------------------------------
 
-def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600):
+def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600,
+                       max_wall_seconds=None):
     """Run YOLOv8 + ByteTrack on a video and return raw track data.
 
     Returns:
@@ -108,6 +110,8 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600):
         }
     """
     yolo = _get_yolo()
+    import time
+    started_at = time.monotonic()
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -122,6 +126,13 @@ def _run_yolo_tracking(video_path, sample_fps=5, max_duration_seconds=3600):
     frame_idx = 0
 
     while frame_idx < max_frames:
+        if max_wall_seconds and time.monotonic() - started_at > max_wall_seconds:
+            logger.warning(
+                "_run_yolo_tracking: stopped after %.1fs wall-clock cap for %s",
+                time.monotonic() - started_at, video_path,
+            )
+            break
+
         ret, frame = cap.read()
         if not ret:
             break

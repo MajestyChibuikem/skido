@@ -85,8 +85,16 @@
 /* Panel */
 .rec-row-panel { padding: 0 18px 18px; }
 .rec-processing { display: flex; align-items: center; gap: 8px; color: var(--orange-dark); font-size: 14px; padding: 16px 0; }
-.rec-failed     { display: flex; align-items: center; gap: 8px; color: var(--red-dark);    font-size: 14px; padding: 16px 0; }
+.rec-failed     { display: flex; align-items: center; gap: 8px; color: var(--red-dark);    font-size: 14px; padding: 16px 0; flex-wrap: wrap; }
 .rec-no-animals { font-size: 14px; color: var(--text-3); padding: 16px 0; }
+.rec-retry-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid rgba(192,57,43,0.22); background: #fff;
+  color: var(--red-dark); border-radius: var(--r-sm);
+  padding: 6px 10px; font: 600 12px var(--font); cursor: pointer;
+}
+.rec-retry-btn:hover { background: var(--red-bg); }
+.rec-retry-btn:disabled { opacity: 0.65; cursor: wait; }
 
 /* Animal grid — snapshot first */
 .animal-grid {
