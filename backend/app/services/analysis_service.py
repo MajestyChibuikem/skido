@@ -86,6 +86,7 @@ def run_recording_analysis(app, recording_id):
 
         recording.status = 'processing'
         db.session.commit()
+        logger.info("recording %d: analysis started", recording_id)
 
         try:
             import time
